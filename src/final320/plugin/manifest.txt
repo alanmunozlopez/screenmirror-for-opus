@@ -1,0 +1,8 @@
+opmod 1
+id alan.screenmirror
+name screenmirror_final320
+author alan
+version 0.12.0
+core 2.4
+adds Experimental color 320x160 for legibility comparison
+place call 0x019AB8C8 screenmirror_flush_entry expect 07e3caaf as final_frame_flush

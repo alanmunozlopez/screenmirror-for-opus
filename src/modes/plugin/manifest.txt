@@ -1,0 +1,9 @@
+opmod 1
+id alan.screenmirror
+name screenmirror
+author alan
+version 0.14.1
+core 2.4
+adds Live fast/balanced/quality display mirror; fast by default
+setting mode fast,balanced,quality fast "mirror mode"
+place call 0x019AB8C8 screenmirror_flush_entry expect 07e3caaf as final_frame_flush

@@ -1,0 +1,32 @@
+{
+  "plugin_version": "0.14.1",
+  "source_workspace_commit": "e2e07295011a2d3d7a0d84b4500f41e082d6f69e",
+  "sdk_commit": "43b18c97ca0cde430b7d176ca4388fd5d1efeb7d",
+  "toolchain": {
+    "gcc": "13.3.0",
+    "binutils": "2.38"
+  },
+  "hardware_validation_scope": "User confirmed received image with 0.14.1 on 2026-11-07; all-mode performance/audio/persistence not measured.",
+  "files": {
+    "src/final240/plugin/flush_entry.S": "f1a635ee9f9c16ff13e8b9c5ad8419278b420e518d9c9c397de73a39696e95f4",
+    "src/final240/plugin/manifest.txt": "9bcd790f625e5ea12020b22f367655bc954ba52dc847923b9cc53cc9ae6dee5f",
+    "src/final240/plugin/screenmirror.c": "c7ccd4e1f1dd2c99b29929f15f6dcbe8eedfb034668540e75e23636244bc35fb",
+    "src/final320/plugin/flush_entry.S": "40a0b64f37d4f08cb59b27a958bfdf9938f6fa56a2d6a02633256de76d8191b5",
+    "src/final320/plugin/manifest.txt": "b575502068e036528dc5d95b7f34cdbb33f57ad5afe1d8b0a957fae7d38a0ba7",
+    "src/final320/plugin/screenmirror.c": "820224eadba400653a90c128b98999ddabbf98318a9a6af84b532f16ccc1d08d",
+    "src/lz-regions-source/lzss.h": "ea2118bc615ac45c80d4be6c452a5e0734ca8b249b3ce0a53095e7da14bf8e16",
+    "src/modes/plugin/engine.h": "21b35a5dac6ad2ebf1d0928e0bde546ba85e8646ad0496da29b5406a08015832",
+    "src/modes/plugin/flush_entry.S": "40a0b64f37d4f08cb59b27a958bfdf9938f6fa56a2d6a02633256de76d8191b5",
+    "src/modes/plugin/manifest.txt": "a70132fa11e56da069c77b9d8deda7a481e8b545fae0d858ed9751f23faf97c1",
+    "src/modes/plugin/native_sender.c": "c558c5b5a787bc2cd104def70d3e7300b1993b4c0e046aff17673d5955260b5e",
+    "src/modes/plugin/rgb_sender.c": "d3c62bb1f0b722ed69fbbfc18b3044046f85376be369c5b79133cfb3efe49872",
+    "src/modes/plugin/screenmirror.c": "1f4178e75e6e9493ab3b592b4537543d58426c17b6141c73d1aa219b24b2c71f",
+    "src/native565/plugin/flush_entry.S": "40a0b64f37d4f08cb59b27a958bfdf9938f6fa56a2d6a02633256de76d8191b5",
+    "src/native565/plugin/manifest.txt": "b259e869e6abe7eb401d063488288e9a889f47f6888ac8d3310238abca725ae9",
+    "src/native565/plugin/screenmirror.c": "910aefafc94de4d8b1967b24a1d1080b56680562e0bf6f2377b81cdfb47ed860",
+    "releases/0.11.0/screenmirror.opmod": "9fb34e3a9e20f3d853a2f9dc537fbc60dafb9efed227eeea886aeffbd7871712",
+    "releases/0.12.0/screenmirror.opmod": "f69cb884ea497f5e227d57f3a826c9905a005985113105fe45553e3c780fd479",
+    "releases/0.13.0/screenmirror.opmod": "ac84a3421efda40e5570c18f96b85b637648928b0981d7561b4e50e8f982e3ec",
+    "releases/0.14.1/screenmirror.opmod": "5148263eb1a80e9edce3c9d821eb18b9c3b7331617f0e4ce75a547ae5446e36a"
+  }
+}

@@ -1,0 +1,21 @@
+ScreenMirror for OPUS
+Author: alanmunozlopez (Alan Munoz Lopez)
+
+This project is distributed under GNU GPL version 3; see LICENSE.
+
+The plugin targets the public OPUS 2 plugin SDK by LizardMan245:
+https://github.com/LizardMan245/opus
+Pinned SDK commit: 43b18c97ca0cde430b7d176ca4388fd5d1efeb7d
+The SDK/toolchain are external dependencies, not bundled here.
+Minimal test-only API declarations in tests/sdk-stubs are based on that public SDK.
+No Teenage Engineering firmware/core image is included.
+
+The bounded LZSS4 codec is the project's custom format, not LZ4.
+All test framebuffers and generated wire captures are synthetic.
+The GNU toolchain build helper downloads separately licensed GNU components;
+their original notices/licenses remain in those external source trees.
+
+This standalone export retains production source and plugin artifact bytes from
+the development workspace at e2e07295011a2d3d7a0d84b4500f41e082d6f69e.
+That hash identifies the original local development history, not a required commit
+in this new standalone repository. The original workspace is preserved separately.
