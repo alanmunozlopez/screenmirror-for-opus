@@ -38,7 +38,7 @@ void opus_on_main_pass(struct opl_self *self,void (*fn)(void)) {(void)self;alloc
 void opus_on_setting(struct opl_self *self,void (*fn)(const char *,int)) {(void)self;allocation_intact();setting_callback=fn;}
 void opus_on_key_after(struct opl_self *self,void (*fn)(int,int)) {(void)self;allocation_intact();(void)fn;}
 void opus_on_knob_after(struct opl_self *self,void (*fn)(int,short)) {(void)self;allocation_intact();(void)fn;}
-int opus_setting(struct opl_self *self,const char *name) {(void)self;allocation_intact();assert(!strcmp(name,"mode"));return 0;}
+int opus_setting(struct opl_self *self,const char *name) {(void)self;allocation_intact();if(!strcmp(name,"send")) {const char *v=getenv("SCREENMIRROR_TEST_SEND");return v?atoi(v):0;}assert(!strcmp(name,"mode"));return 0;}
 void opus_clock(struct opus_clock *clock) {
     unsigned seconds=(unsigned)(elapsed_cycles/400000000u);
     allocation_intact();
@@ -67,7 +67,7 @@ static void packet_finished(void) {
     assert(acc==0u && n>=6u && n<=75u);
     assert(checksum(raw,n-2u)==u16(raw,n-2u));
     if(wire[4]==3u) {
-        assert(raw[9]==(target_mode==SM_QUALITY?4u:3u) && raw[10]==0u && raw[11]==14u && raw[12]==1u);
+        assert(raw[9]==(target_mode==SM_QUALITY?4u:3u) && raw[10]==0u && raw[11]==16u && raw[12]==0u);
         return;
     }
     emitted_messages++;
@@ -81,7 +81,7 @@ static void packet_finished(void) {
         if(raw[7]+1u==raw[8])stripes_received|=1u<<raw[6];
         if(stripes_received==(patch?1u:((1u<<stripe_count)-1u)))complete=1;
     } else {
-        width=target_mode==SM_FAST?240u:320u;
+        width=target_mode==SM_FAST?240u:target_mode==SM_BALANCED?320u:panel;
         assert(wire[4]==4u && u16(raw,11)==width && u16(raw,13)==width/2u);
         if(patch)assert(raw[10]==5u || raw[10]==7u);
         else assert(raw[10]==0u || raw[10]==1u || raw[10]==6u);
@@ -91,7 +91,8 @@ static void packet_finished(void) {
 void fw_midi_send(int unused,const unsigned int *events,int count) {
     int i,j,n;(void)unused;
     allocation_intact();assert(inside_main && count>0 && count<=31);
-    if(have_send)assert((unsigned)(screenmirror_test_cycles()-last_send)>=2000000u);
+    /* x1 keeps the 0.14 spacing; x2-x4 deliberately send several messages per main pass. */
+    if(have_send && !getenv("SCREENMIRROR_TEST_SEND"))assert((unsigned)(screenmirror_test_cycles()-last_send)>=2000000u);
     for(i=0;i<count;i++) {
         unsigned cin=events[i]&15u;
         n=cin==4u?3:(int)cin-4;
@@ -147,7 +148,7 @@ static void receive_update(void) {
     assert(complete && step<10000u);
 }
 int main(int argc,char **argv) {
-    static const unsigned modes[]={SM_FAST,SM_BALANCED,SM_QUALITY,SM_FAST,SM_QUALITY,SM_BALANCED,SM_FAST};
+    static const unsigned modes[]={SM_FAST,SM_BALANCED,SM_QUALITY,SM_FAST,SM_QUALITY,SM_BALANCED,SM_FAST,SM_SHARP,SM_QUALITY,SM_SHARP,SM_BALANCED,SM_SHARP,SM_FAST};
     unsigned index,previous_session;char path[1024];FILE *manifest;
     assert(argc==3);panel=(unsigned)strtoul(argv[1],0,10);
     assert(panel==320u || panel==376u || panel==400u);
@@ -167,7 +168,7 @@ int main(int argc,char **argv) {
         write_expected(argv[2],index*2u+1u,manifest);
     }
     allocation_intact();assert(!wire_length && fputs("\n]\n",manifest)!=EOF && !fclose(manifest));
-    fprintf(stderr,"PASS modes actual-C corpus: panel%u,14images(7full+7regions),6directionaltransitions,%uimagepackets,%umessages\n",
-        panel,emitted_messages,total_messages);
+    fprintf(stderr,"PASS modes actual-C corpus: panel%u,%uimages,%udirectionaltransitions,%uimagepackets,%umessages\n",
+        panel,(unsigned)(2u*(sizeof(modes)/sizeof(modes[0]))),(unsigned)(sizeof(modes)/sizeof(modes[0])-1u),emitted_messages,total_messages);
     return 0;
 }

@@ -2,10 +2,11 @@
 #include "op1fw.h"
 #include "engine.h"
 /* 0.14: original v4 RGB332 planner, with output geometry selected in main.
- * Capture derives its local geometry from the immutable epoch/mode token.
- * Allocation stays bounded by the 320x160 balanced profile. */
-#define MAX_WIDTH 320u
-#define MAX_HEIGHT 160u
+ * Capture derives its local geometry from the immutable epoch/mode token and,
+ * for sharp, the physical panel (320, 376 or 400 columns, never scaled).
+ * Image-sized LZ/RLE work buffers live in the shared opus_alloc pool. */
+#define MAX_WIDTH 400u
+#define MAX_HEIGHT 200u
 #define MAX_IMAGE_BYTES (MAX_WIDTH*MAX_HEIGHT)
 #define MAX_TILES ((MAX_WIDTH/8u)*(MAX_HEIGHT/4u))
 #define MAX_REGION_PACKETS (MAX_TILES/2u+1u)
@@ -30,12 +31,22 @@ static unsigned output_width=240u,expected_token;
 #endif
 #include "../../lz-regions-source/lzss.h"
 #define REGION_STREAM_BYTES ((TILES/2)*35)
-#define snapshots sm_pixels->snapshots.rgb
-#define reference sm_pixels->reference.rgb
-static unsigned char compressed[MAX_IMAGE_BYTES];
-static unsigned char region_stream[MAX_REGION_STREAM_BYTES],lz_buffer[MAX_IMAGE_BYTES+3],lz_trial[MAX_IMAGE_BYTES+3];
+typedef char sm_rgb_fits_snapshots[sizeof(struct sm_rgb_snapshots)<=sizeof(union sm_snapshot_storage)?1:-1];
+typedef char sm_rgb_fits_reference[sizeof(struct sm_rgb_reference)<=sizeof(union sm_reference_storage)?1:-1];
+typedef char sm_rgb_image_fits[MAX_IMAGE_BYTES<=sizeof(sm_pixels->reference.rgb.image) &&
+    MAX_IMAGE_BYTES+3u<=sizeof(sm_pixels->snapshots.rgb.lz_trial)?1:-1];
+static unsigned char *rgb_compressed(void) {return sm_pixels->reference.rgb.compressed;}
+static unsigned char *rgb_lz_buffer(void) {return sm_pixels->snapshots.rgb.lz_buffer;}
+static unsigned char *rgb_lz_trial(void) {return sm_pixels->snapshots.rgb.lz_trial;}
+#define snapshots sm_pixels->snapshots.rgb.image
+#define reference sm_pixels->reference.rgb.image
+#define compressed (rgb_compressed())
+#define lz_buffer (rgb_lz_buffer())
+#define lz_trial (rgb_lz_trial())
+static unsigned char region_stream[MAX_REGION_STREAM_BYTES];
 static unsigned char packets[MAX_REGION_PACKETS][PAYLOAD],packet_lengths[MAX_REGION_PACKETS];
-static unsigned snapshot_seq[3],snapshot_token[3],column_offset[MAX_WIDTH],row_offset[MAX_HEIGHT];
+static unsigned snapshot_seq[3],snapshot_token[3],snapshot_width[3],column_offset[MAX_WIDTH],row_offset[MAX_HEIGHT];
+static unsigned width_known;
 static unsigned mapped_rows,mapped_width;
 static volatile unsigned ready_token=3,send_slot=3;
 static unsigned generation,handled_token=3,session_id;
@@ -71,8 +82,9 @@ static unsigned crc(const unsigned char *p,unsigned n) {
  * call opus_page_pixels outside a draw context. Assembly always forwards flush,
  * including when this observer refuses the supplied range. */
 void sm_rgb_capture(void *start,void *end,int invalidate,unsigned token) {
-    unsigned now=cycles(),slot,r,x,y,i=0,v,rows;
-    const unsigned width=(token&3u)==SM_BALANCED?320u:240u,height=width/2u;
+    unsigned now=cycles(),slot,r,x,y,xb,v,rows;
+    unsigned char *dst,*line;const unsigned short *source;
+    unsigned width,height;
     __UINTPTR_TYPE__ first=(__UINTPTR_TYPE__)start,last=(__UINTPTR_TYPE__)end,span;
     const unsigned short *buf=(const unsigned short *)start;
     frame_callbacks++;
@@ -83,11 +95,16 @@ void sm_rgb_capture(void *start,void *end,int invalidate,unsigned token) {
     span=last-first;
     if(span!=512u*320u && span!=512u*376u && span!=512u*400u) {capture_status=4;return;}
     rows=(unsigned)(span/512u);panel_rows=rows;
+    width=(token&3u)==SM_SHARP?rows:(token&3u)==SM_BALANCED?320u:240u;height=width/2u;
     if(have_capture && last_capture_token==token && now-last_capture<CAPTURE_CYCLES)return;
     last_capture=now;have_capture=1;last_capture_token=token;
     if(mapped_rows!=rows || mapped_width!=width) {
         /* Keep the two divisors constant on Blackfin, as in each old profile. */
-        if(width==240u) {
+        if(width==rows) {
+            /* Sharp: every physical pixel, no column or row dropped. */
+            for(x=0;x<width;x++)column_offset[x]=256u*(rows-1u-x);
+            for(y=0;y<height;y++)row_offset[y]=y;
+        } else if(width==240u) {
             for(x=0;x<240u;x++)column_offset[x]=256u*(rows-1u-x*rows/240u);
             for(y=0;y<120u;y++)row_offset[y]=y*rows/240u;
         } else {
@@ -103,12 +120,20 @@ void sm_rgb_capture(void *start,void *end,int invalidate,unsigned token) {
 #ifdef SCREENMIRROR_TEST_INTERLEAVING
     screenmirror_test_interleave(1);
 #endif
-    for(y=0;y<height;y++)for(x=0;x<width;x++) {
-        v=buf[column_offset[x]+row_offset[y]];
-        snapshots[slot][i++]=(unsigned char)(((v>>8)&0xe0)|((v>>6)&0x1c)|((v>>3)&3));
-    }
+    /* 0.15: same pixels as 0.14, gathered eight output columns at a time. Each
+     * column is a contiguous framebuffer run, so eight sequential streams stay in
+     * cache; local pointers avoid reloading sm_pixels after every byte store. */
+    dst=snapshots[slot];
+    for(xb=0;xb<width;xb+=8u)
+        for(y=0;y<height;y++) {
+            source=buf+row_offset[y];line=dst+y*width;
+            for(x=xb;x<xb+8u;x++) {
+                v=source[column_offset[x]];
+                line[x]=(unsigned char)(((v>>8)&0xe0)|((v>>6)&0x1c)|((v>>3)&3));
+            }
+        }
     generation=(generation+1)&0x3fffffffu;snapshot_seq[slot]=generation&65535;
-    snapshot_token[slot]=token;
+    snapshot_token[slot]=token;snapshot_width[slot]=width;
     capture_cycles_latest=cycles()-now;captures++;capture_status=5;
     barrier();ready_token=(generation<<2)|slot;
 }
@@ -142,7 +167,7 @@ static void diagnostic(unsigned char *raw,unsigned t) {
     raw[5]=(unsigned char)pending;raw[6]=254;
     /* Schema 3 retains tile-count dimensions, replaces pending_skips by planning cycles. */
     raw[7]=WIDTH/TILE_W;raw[8]=HEIGHT/TILE_H;
-    raw[9]=3;raw[10]=0;raw[11]=14;raw[12]=1;
+    raw[9]=3;raw[10]=0;raw[11]=16;raw[12]=0;
     word(raw+13,t);word(raw+17,frame_callbacks);word(raw+21,main_callbacks);word(raw+25,captures);
     word(raw+29,frames_attempted);word(raw+33,image_messages);word(raw+37,key_events);word(raw+41,knob_events);
     word(raw+45,capture_cycles_latest);word(raw+49,frame_gap_max_cycles);word(raw+53,main_gap_max_cycles);
@@ -151,9 +176,13 @@ static void diagnostic(unsigned char *raw,unsigned t) {
 }
 static unsigned tile_offset(unsigned tile,unsigned j) {
     /* A runtime tile/COLS division in this hot path would cost much more than
-     * the original constant240/320 builds. Both branches retain those constants. */
+     * the original constant240/320 builds. Every branch keeps constant divisors. */
     if(output_width==240u)
         return (tile/30u)*4u*240u+(j/8u)*240u+(tile%30u)*8u+(j%8u);
+    if(output_width==400u)
+        return (tile/50u)*4u*400u+(j/8u)*400u+(tile%50u)*8u+(j%8u);
+    if(output_width==376u)
+        return (tile/47u)*4u*376u+(j/8u)*376u+(tile%47u)*8u+(j%8u);
     return (tile/40u)*4u*320u+(j/8u)*320u+(tile%40u)*8u+(j%8u);
 }
 static unsigned tile_record(const unsigned char *src,unsigned tile,unsigned char *record) {
@@ -169,16 +198,16 @@ static unsigned tile_record(const unsigned char *src,unsigned tile,unsigned char
     record[2]=TILE_BYTES;for(i=0;i<TILE_BYTES;i++)record[3+i]=raw[i];return TILE_BYTES+3;
 }
 static unsigned compress_full(const unsigned char *src) {
-    unsigned i,run=0,value=0,n=0;
-    for(i=0;i<IMAGE_BYTES;i++) {
+    unsigned i,run=0,value=0,n=0;const unsigned size=IMAGE_BYTES;unsigned char *out=compressed;
+    for(i=0;i<size;i++) {
         if(run && (src[i]!=value || run==255)) {
-            if(n+2>IMAGE_BYTES)return IMAGE_BYTES;
-            compressed[n++]=(unsigned char)run;compressed[n++]=(unsigned char)value;run=0;
+            if(n+2>size)return size;
+            out[n++]=(unsigned char)run;out[n++]=(unsigned char)value;run=0;
         }
         value=src[i];run++;
     }
-    if(n+2>IMAGE_BYTES)return IMAGE_BYTES;
-    compressed[n++]=(unsigned char)run;compressed[n++]=(unsigned char)value;return n;
+    if(n+2>size)return size;
+    out[n++]=(unsigned char)run;out[n++]=(unsigned char)value;return n;
 }
 static void release_snapshot(void) {barrier();send_slot=3;pending=0;}
 /* A compressed candidate must save at least one complete message against the
@@ -193,6 +222,8 @@ static void try_lz(const unsigned char *src,unsigned decoded,unsigned transform,
     capacity-=prefix;
     if(capacity>legacy_size-prefix)capacity=legacy_size-prefix;
     if(capacity>IMAGE_BYTES)capacity=IMAGE_BYTES;
+    /* LZSS4 refuses inputs above 65534 bytes (sharp 376/400 raw images); the
+     * RLE-transformed candidate still applies and keeps the 16-bit length field. */
     n=bounded_lzss_encode(src,decoded,lz_trial+prefix,capacity,4,0);
     if(n==0xffffffffu)return;
     n+=prefix;count=(n+PAYLOAD-1)/PAYLOAD;
@@ -214,6 +245,13 @@ static void prepare(unsigned now) {
     screenmirror_test_interleave(2);
 #endif
     if(ready_token!=token || snapshot_token[slot]!=expected_token) {send_slot=3;return;}
+    if(snapshot_width[slot]!=output_width) {
+        /* Sharp follows the physical panel; a different geometry is a new session. */
+        if((expected_token&3u)!=SM_SHARP) {send_slot=3;handled_token=token;return;}
+        if(width_known)session_id=sm_new_session();
+        output_width=snapshot_width[slot];have_reference=0;
+    }
+    width_known=1;
     /* No pixels read until publication and mode/epoch both validate. */
     started=cycles();
 #ifdef SCREENMIRROR_TEST_PREPARE_COST
@@ -261,7 +299,7 @@ static void prepare(unsigned now) {
     planning_cycles_latest=cycles()-started;
 }
 static void main_pass(void) {
-    struct opus_clock now;unsigned char raw[80];unsigned n,i,t=cycles();
+    struct opus_clock now;unsigned char raw[80];unsigned n,i,k,burst,t=cycles();
     const unsigned char *src;
     main_callbacks++;
     if(main_seen && t-last_main_cycle>main_gap_max_cycles)main_gap_max_cycles=t-last_main_cycle;
@@ -273,6 +311,8 @@ static void main_pass(void) {
     if(!fw_usb_configured()) {usb_unconfigured++;have_reference=0;release_snapshot();return;}
     opus_clock(&now);
     if(now.second!=last_status) {last_status=now.second;diagnostic(raw,t);return;}
+    burst=sm_burst;if(burst<1u || burst>4u)burst=1u;
+    for(k=0;k<burst;k++) {
     if(!pending)prepare(t);
     if(!pending)return;
     barrier();src=snapshots[send_slot];
@@ -290,17 +330,20 @@ static void main_pass(void) {
     send_packet(raw,n+15,4);image_messages++;
     if(++part==fragment_count) {
         transmit_cycles_latest=cycles()-transmit_start;frames_attempted++;
-        for(i=0;i<IMAGE_BYTES;i++)reference[i]=src[i];
+        {unsigned char *ref=reference;const unsigned size=IMAGE_BYTES;for(i=0;i<size;i++)ref[i]=src[i];}
         have_reference=1;
         if(kind!=5 && kind!=7) {last_refresh=cycles();refresh_due=0;}
         release_snapshot();
+        break; /* Plan the next snapshot on a later pass. */
+    }
     }
 }
 /* Only main calls select. Do not reset ready_token, generation, capture
  * timing, mapping state or snapshot storage: display can be preempting main. */
 void sm_rgb_select(unsigned token,unsigned session) {
     release_snapshot();expected_token=token;
-    output_width=(token&3u)==SM_BALANCED?320u:240u;
+    /* Sharp starts at 320 for telemetry until the first capture reports the panel. */
+    output_width=(token&3u)==SM_FAST?240u:320u;width_known=0;
     session_id=session;have_reference=0;refresh_due=0;
     wire_size=0;fragment_count=0;part=0;last_status=99;
 }

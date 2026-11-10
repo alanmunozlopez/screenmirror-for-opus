@@ -5,6 +5,7 @@
 /* Only the selected engine accesses these pools. A fresh epoch invalidates all
  * old snapshot metadata before either engine may consume the reused bytes. */
 struct sm_pixel_storage *sm_pixels;
+volatile unsigned sm_burst=4u;
 
 /* Settings callbacks only publish a request. Main owns cancellation, transport
  * and selecting an engine. Display reads one atomic mode/epoch token and the
@@ -32,7 +33,7 @@ static void controller_barrier(void) {
 #endif
 }
 static unsigned valid_mode(int value) {
-    return value>=0 && value<=2 ? (unsigned)value:0u;
+    return value>=0 && value<=3 ? (unsigned)value:SM_SHARP;
 }
 unsigned sm_new_session(void) {
     /* Called on main only, including physical geometry changes in an engine. */
@@ -51,26 +52,33 @@ void sm_send_events(const unsigned int *events,int count) {
 static void select_mode(unsigned mode) {
     unsigned token,session=sm_new_session();
     epoch=(epoch+1u)&0x3fffffffu;
+    if(!epoch)epoch=1u; /* Epoch 0 is reserved for the uninitialized token. */
     token=(epoch<<2)|mode;
-    if(mode==2u)sm_native_select(token,session);
+    if(mode==SM_QUALITY)sm_native_select(token,session);
     else sm_rgb_select(token,session);
     controller_barrier();active_token=token;
+}
+static unsigned valid_burst(int value) {
+    return value>=0 && value<=3 ? (unsigned)value+1u:4u;
 }
 static void setting_changed(const char *name,int value) {
     if(name && name[0]=='m' && name[1]=='o' && name[2]=='d' &&
        name[3]=='e' && name[4]==0)requested_mode=valid_mode(value);
+    if(name && name[0]=='s' && name[1]=='e' && name[2]=='n' &&
+       name[3]=='d' && name[4]==0)sm_burst=valid_burst(value);
 }
 void screenmirror_capture_flush(void *start,void *end,int invalidate) {
     unsigned token=active_token;
-    if((token&3u)==2u)sm_native_capture(start,end,invalidate,token);
-    else if((token&3u)<2u)sm_rgb_capture(start,end,invalidate,token);
+    if(!(token>>2))return; /* Not initialized, or opl_init failed. */
+    if((token&3u)==SM_QUALITY)sm_native_capture(start,end,invalidate,token);
+    else sm_rgb_capture(start,end,invalidate,token);
 }
 static void main_pass(void) {
     unsigned mode=requested_mode;
     if((active_token&3u)!=mode)select_mode(mode);
     /* Engines count/latch every main pass, then check shared transport spacing
      * immediately before preparing/sending; no extra dispatch throttling. */
-    if(mode==2u)sm_native_main();else sm_rgb_main();
+    if(mode==SM_QUALITY)sm_native_main();else sm_rgb_main();
 }
 static void key_after(int key,int pressed) {
     sm_rgb_key(key,pressed);sm_native_key(key,pressed);
@@ -89,6 +97,7 @@ int opl_init(struct opl_self *self) {
     session_counter=controller_cycles()^((unsigned)clock.second<<24)^
         ((unsigned)clock.minute<<16)^((unsigned)clock.hour<<8)^0x534d000eu;
     requested_mode=valid_mode(opus_setting(self,"mode"));
+    sm_burst=valid_burst(opus_setting(self,"send"));
     select_mode(requested_mode);
     opus_on_setting(self,setting_changed);
     opus_on_main_pass(self,main_pass);

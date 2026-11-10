@@ -10,6 +10,28 @@ La versión actual es **0.14.1**. Una vez instalado y cargado por OPUS, comienza
 | `balanced` | 320×160, RGB332, 256 colores; más detalle | macOS y Chrome |
 | `quality` | Resolución física 320×160, 376×188 o 400×200; RGB565 | App macOS 0.14.0 |
 
+### Versión experimental 0.16.0: perfil `sharp` y `send rate`
+
+La rama `perf/send-rate-capture` contiene **0.16.0**, todavía sin paquete en `releases/`. Se compila con `sh scripts/build.sh` y añade:
+
+| Ajuste en OPUS | Valores | Efecto |
+|---|---|---|
+| `mode` | `fast`, `balanced`, `quality`, **`sharp`** (predeterminado) | `sharp`: resolución física sin escalar (320×160, 376×188 o 400×200) en RGB332; texto tan nítido como `quality` con el transporte v4 de `balanced`. |
+| `send rate` | `x1`–`x4` (predeterminado **x4**) | Mensajes por pasada de main. `x1` conserva el ritmo de 0.14 (uno cada ≥5 ms). |
+
+`balanced` y `fast` siguen escalando la pantalla de 400 a 320 o 240 columnas sin filtrar, lo que deforma trazos de 1 píxel; `sharp` no descarta ningún píxel. Necesita los visores actualizados (app de escritorio compilada desde `main` y visor web actual): la app 0.14.0 distribuida rechaza las geometrías 376/400 en v4.
+
+Medido por el usuario en su OP-1 (panel 400×200) el **10 de noviembre de 2026**, con la grabadora de SysEx del receptor:
+
+| Perfil y velocidad | Pantalla completa (mediana) | Cambio regional (mediana) |
+|---|---|---|
+| `balanced` x1 | 492 ms | 160 ms |
+| `balanced` x4 | 54–57 ms | 40–48 ms |
+| `sharp` x4 | 80 ms (p90 168 ms) | 64 ms |
+| `quality` x1 / x4 | 3,6 s / 0,98 s | — |
+
+Sin errores CRC ni fragmentos perdidos en unos 110.000 mensajes; el usuario no percibió cambios en el audio. Son tiempos de llegada al ordenador de cada lote, no latencia tecla→imagen.
+
 Las actualizaciones regionales, compresión sin pérdida y descarte de trabajo antiguo reducen lo enviado. Los perfiles mayores pueden tardar más cuando cambia toda la pantalla; no se prometen 30 FPS.
 
 ## Los tres proyectos

@@ -40,7 +40,7 @@ static void sdk_after_allocation(void) {
 
 unsigned screenmirror_test_cycles(void) {return (unsigned)test_time;}
 int opus_setting(struct opl_self *self,const char *name) {
-    (void)self;sdk_after_allocation();assert(!strcmp(name,"mode"));return persisted_mode;
+    (void)self;sdk_after_allocation();if(!strcmp(name,"send"))return 0;assert(!strcmp(name,"mode"));return persisted_mode;
 }
 void opus_on_setting(struct opl_self *self,void (*fn)(const char *,int)) {
     (void)self;sdk_after_allocation();assert(fn);registered_setting=fn;
@@ -82,7 +82,7 @@ void fw_midi_send(int cable,const unsigned *events,int count) {
     if(wire[4]==4u || wire[4]==5u) {
         image_packets++;session=read32(raw);assert(session);
         width=read16(raw+(wire[4]==4u?11u:10u));height=read16(raw+(wire[4]==4u?13u:12u));
-        assert(width==(expected_mode==0u?240u:expected_mode==1u?320u:panel) && height==width/2u);
+        assert(width==(expected_mode==0u?240u:expected_mode==1u?320u:panel) && height==width/2u); /* quality and sharp: physical panel */
         assert(wire[4]==(expected_mode==2u?5u:4u));
         last_image_session=session;
         if(wire[4]==4u) {
@@ -100,7 +100,7 @@ void fw_midi_send(int cable,const unsigned *events,int count) {
             if(native_seen==((1u<<((height+7u)/8u))-1u)) {complete_images++;native_seen=0u;}
         }
     } else {
-        assert(wire[4]==3u && r==75u && raw[6]==254u && raw[10]==0u && raw[11]==14u && raw[12]==1u);
+        assert(wire[4]==3u && r==75u && raw[6]==254u && raw[10]==0u && raw[11]==16u && raw[12]==0u);
     }
     test_time+=80000u;last_send_done=screenmirror_test_cycles();have_sent=1u;sends++;
 }
@@ -130,7 +130,7 @@ static void capture(unsigned value) {capture_frame(value,1u);}
 static void choose(int mode) {
     unsigned before=sends,old=active_token;
     registered_setting("mode",mode);assert(sends==before && active_token==old);
-    expected_mode=mode>=0 && mode<=2?(unsigned)mode:0u;
+    expected_mode=mode>=0 && mode<=3?(unsigned)mode:3u;
     pass();assert((active_token&3u)==expected_mode);
 }
 static void await_complete(void) {
@@ -169,7 +169,7 @@ int main(int argc,char **argv) {
         puts("PASS allocation failure refuses init before SDK callbacks and leaves capture disabled");
         return 0;
     }
-    expected_mode=persisted_mode>=0 && persisted_mode<=2?(unsigned)persisted_mode:0u;
+    expected_mode=persisted_mode>=0 && persisted_mode<=3?(unsigned)persisted_mode:3u;
     assert(opl_init(0)==0);allocation_intact();
     for(i=0;i<sizeof(allocated_pixels);i++)assert(((unsigned char *)&allocated_pixels)[i]==0u);
     assert(registered_main && registered_setting && !sends && (active_token&3u)==expected_mode);
@@ -182,7 +182,7 @@ int main(int argc,char **argv) {
         assert(last_image_session==old_session);
         puts("PASS persisted startup/default/range and ignored setting names");
     } else if(test==2u) {
-        static const unsigned choices[]={0,2,1,0,1,2,0};
+        static const unsigned choices[]={0,2,3,1,0,3,1,2,3,0};
         old_session=0u;
         for(i=0;i<sizeof(choices)/sizeof(choices[0]);i++) {
             unsigned mode=choices[i];
@@ -200,7 +200,7 @@ int main(int argc,char **argv) {
     } else if(test==3u) {
         capture(0xffffu);await_packet();before=image_packets;
         assert(last_image_fragment+1u<last_image_count);
-        inject_stage=1u;inject_mode=(expected_mode+1u)%3u;capture(0x1111u);
+        inject_stage=1u;inject_mode=(expected_mode+1u)%4u;capture(0x1111u);
         for(i=0;i<10u;i++)pass();assert(image_packets==before);
         capture(0x0821u);await_complete();
         puts("PASS selection during capture discards old-epoch publication");
@@ -211,14 +211,14 @@ int main(int argc,char **argv) {
     } else if(test==5u) {
         capture(0xffffu);await_packet();before=sends;usb_up=0u;
         for(i=0;i<8u;i++)pass();assert(sends==before);
-        choose((int)((expected_mode+1u)%3u));capture(0x0821u);
+        choose((int)((expected_mode+1u)%4u));capture(0x0821u);
         for(i=0;i<8u;i++)pass();assert(sends==before);
         usb_up=1u;capture(0x0821u);await_complete();
         puts("PASS mode change while USB disconnected waits and fully repairs");
     } else if(test==6u) {
         unsigned initial=expected_mode;
         capture(0xffffu);await_packet();
-        choose((int)((expected_mode+1u)%3u));capture_frame(0x1111u,0u);
+        choose((int)((expected_mode+1u)%4u));capture_frame(0x1111u,0u);
         choose((int)initial);before=image_packets;
         /* Same physical buffer and less than100ms since this engine's last
          * capture: a new epoch must still publish immediately. */
@@ -227,7 +227,7 @@ int main(int argc,char **argv) {
     } else if(test==7u) {
         capture(0xffffu);await_packet();
         test_time=(UINT64_C(1)<<32)-2000000u;pass();
-        choose((int)((expected_mode+1u)%3u));capture_frame(0x0821u,0u);await_complete();
+        choose((int)((expected_mode+1u)%4u));capture_frame(0x0821u,0u);await_complete();
         puts("PASS shared USB pacing survives CYCLES wrap across engine changes");
     } else assert(0 && "unknown test");
     allocation_intact();assert(sends && image_packets && !in_display && !in_main);

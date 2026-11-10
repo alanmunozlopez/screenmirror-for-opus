@@ -28,7 +28,7 @@ class ModesIndependent(unittest.TestCase):
     def test_settings_and_live_mode_changes(self):
         environment = dict(os.environ, ASAN_OPTIONS='detect_leaks=0')
         for test in range(1, 9):
-            for persisted in ((0, 1, 2, -1, 3) if test == 1 else (0, 1, 2)):
+            for persisted in ((0, 1, 2, 3, -1, 4) if test == 1 else (0, 1, 2, 3)):
                 with self.subTest(test=test, persisted=persisted):
                     subprocess.run([str(self.binary), str(test), str(persisted)], check=True, env=environment)
 

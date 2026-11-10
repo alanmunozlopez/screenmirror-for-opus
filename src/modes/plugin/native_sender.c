@@ -119,7 +119,7 @@ static void diagnostic(unsigned char *raw,unsigned t) {
     short_word(raw,seq);raw[2]=255;raw[3]=255;raw[4]=(unsigned char)capture_status;
     raw[5]=(unsigned char)(pending!=0);raw[6]=254;
     raw[7]=(unsigned char)(width/8u);raw[8]=(unsigned char)(width/8u);
-    raw[9]=4;raw[10]=0;raw[11]=14;raw[12]=1;
+    raw[9]=4;raw[10]=0;raw[11]=16;raw[12]=0;
     word(raw+13,t);word(raw+17,frame_callbacks);word(raw+21,main_callbacks);word(raw+25,captures);
     word(raw+29,stripe_batches_sent);word(raw+33,image_messages);word(raw+37,key_events);word(raw+41,knob_events);
     word(raw+45,capture_cycles_latest);word(raw+49,frame_gap_max_cycles);word(raw+53,main_gap_max_cycles);
@@ -190,7 +190,7 @@ static void prepare_one(void) {
     planning_cycles_latest=cycles()-started;
 }
 static void main_pass(void) {
-    struct opus_clock now;unsigned char raw[80];unsigned n,i,t=cycles();
+    struct opus_clock now;unsigned char raw[80];unsigned n,i,k,burst,scans,t=cycles();
     const unsigned char *bytes;
     main_callbacks++;
     if(main_seen && t-last_main_cycle>main_gap_max_cycles)main_gap_max_cycles=t-last_main_cycle;
@@ -201,9 +201,17 @@ static void main_pass(void) {
     if(!fw_usb_configured()) {usb_unconfigured++;have_reference=0;reference_valid=0;release_snapshot();return;}
     opus_clock(&now);
     if(now.second!=last_status) {last_status=now.second;diagnostic(raw,t);return;}
+    burst=sm_burst;if(burst<1u || burst>4u)burst=1u;
+    /* x1 keeps one stripe comparison per pass; faster rates compare up to
+     * 4*burst stripes per pass so a change starts sending sooner. */
+    for(k=0,scans=0;k<burst;) {
     if(!pending)reserve_snapshot();
     if(!pending)return;
-    if(pending==1) {scan_one();return;}
+    if(pending==1) {
+        scan_one();
+        if(burst==1u || ++scans>=4u*burst)return;
+        continue;
+    }
     if(pending==2)prepare_one();
     if(pending!=3)return;
     word(raw,session_id);short_word(raw+4,seq);raw[6]=(unsigned char)stripe_index;
@@ -214,7 +222,7 @@ static void main_pass(void) {
     n=wire_size-part*PAYLOAD;if(n>PAYLOAD)n=PAYLOAD;
     for(i=0;i<n;i++)raw[16+i]=bytes[part*PAYLOAD+i];
     if(!part)transmit_start=cycles();
-    send_packet(raw,n+16u,5);image_messages++;
+    send_packet(raw,n+16u,5);image_messages++;k++;
     if(++part==fragment_count) {
         const unsigned short *src=snapshots[send_slot];
         transmit_cycles_latest=cycles()-transmit_start;stripe_batches_sent++;
@@ -225,7 +233,9 @@ static void main_pass(void) {
             have_reference=reference_valid==all_stripes();
             if(full_snapshot) {last_refresh=cycles();refresh_due=0;}
             release_snapshot();
+            break;
         }
+    }
     }
 }
 /* Main-only reset. Capture publication, timing and mapping remain display-owned. */

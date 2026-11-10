@@ -12,11 +12,13 @@ El callback valida rango, alineación, modo de invalidación y una geometría de
 
 ## Cambiar de modo
 
-El manifiesto ofrece `mode fast,balanced,quality`, inicialmente fast. `opus_setting` lee la elección persistida y `opus_on_setting` publica una petición numérica. Main aplica la petición, incrementa la generación y cambia un token indivisible `(epoch<<2)|mode`. Cada snapshot conserva el token con el que fue tomado.
+El manifiesto ofrece `mode fast,balanced,quality,sharp`, inicialmente `sharp` desde 0.16.0 (antes `fast`), y `send rate x1..x4`, inicialmente x4. `sharp` usa el motor RGB332 con la geometría física del panel; su anchura se toma de cada captura y un cambio de geometría abre sesión nueva. El token con época 0 queda reservado para el estado sin inicializar. `opus_setting` lee la elección persistida y `opus_on_setting` publica una petición numérica. Main aplica la petición, incrementa la generación y cambia un token indivisible `(epoch<<2)|mode`. Cada snapshot conserva el token con el que fue tomado.
 
 Al cambiar de modo, main abandona el trabajo y la referencia anteriores y exige una captura nueva. Se asigna una sesión nueva, incluso al volver a un modo utilizado antes. Solo el motor seleccionado interpreta los pools de píxeles compartidos. El receptor de escritorio invalida reconstrucciones y rechaza sesiones retiradas para no mezclar RGB332 y RGB565.
 
 ## Memoria y corrección 0.14.1
+
+Desde 0.16.0 el motor RGB332 guarda en ese mismo pool, dentro del espacio que en modo `quality` ocupan los snapshots RGB565, sus buffers de imagen completa: RLE, salida LZ y candidato LZ (hasta 400×200). Solo main los usa y solo con un motor RGB332 seleccionado. Los estáticos bajan a **180.240 bytes** (12.640 de imagen + 167.600 de zero fill) sin cambiar la reserva de 640.000 bytes. LZSS4 sigue limitado a entradas de 65.534 bytes: en 376/400 columnas el keyframe usa LZ sobre el flujo RLE (transform 1) o RLE/raw, sin cambios de formato.
 
 Una única reserva `opus_alloc` de **640.000 bytes** en `opl_init` guarda snapshots y referencia: memoria cero, alineación de 32 bytes y duración del arranque según el contrato de OPUS. Si falla, `opl_init` devuelve -1 antes de registrar callbacks. No hay reservas durante captura, transmisión o cambios de modo.
 
@@ -34,7 +36,7 @@ Cada mensaje es SysEx con identificador no comercial `0x7d`, firma `SM`, versió
 
 El codec LZSS tiene ventana de 4096 bytes, 4 candidatos de búsqueda, coincidencias de 3–18 bytes y un presupuesto de 8192 comparaciones por bloque de 1024 posiciones de entrada. La salida tiene capacidad explícita; si no cabe se elige una representación alternativa. La compresión y los envíos incrementales ocurren exclusivamente en main.
 
-Se prioriza el snapshot más reciente sin mantener una cola creciente de imágenes antiguas. El intervalo compartido de transmisión es de al menos **5 ms desde el retorno de la llamada USB anterior**, también al cambiar entre motores. Se comprueba la configuración USB antes de enviar. No se altera el transporte de audio ni se registran callbacks de audio.
+Se prioriza el snapshot más reciente sin mantener una cola creciente de imágenes antiguas. El intervalo compartido de transmisión es de al menos **5 ms desde el retorno de la llamada USB anterior**, también al cambiar entre motores. Desde 0.15.0, `send rate` permite enviar hasta 4 mensajes seguidos en una misma pasada tras ese intervalo; con x1 se mantiene un mensaje por pasada. Se comprueba la configuración USB antes de enviar. No se altera el transporte de audio ni se registran callbacks de audio.
 
 `fw_midi_send` tiene retorno void: una llamada no prueba entrega y la cola puede descartar. No hay ACK/retransmisión por fragmento; keyframes periódicos, aproximadamente cada 8 segundos desde el último completado, permiten corregir una referencia perdida. Los decodificadores rechazan paquetes incoherentes y esperan una base válida. El protocolo robusto reduce errores observables, pero no convierte USB MIDI en un canal de vídeo garantizado.
 
