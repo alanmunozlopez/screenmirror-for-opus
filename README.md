@@ -2,6 +2,8 @@
 
 Plugin para recuperar en el ordenador la pantalla de un Teenage Engineering **OP-1 original**, incluido el menú de OPUS 2. Autor: [alanmunozlopez](https://github.com/alanmunozlopez).
 
+ScreenMirror existe gracias a [**OPUS**](https://github.com/LizardMan245/opus), de **LizardMan**: su core, su sistema de plugins `.opmod` y su SDK hacen posible cargar este plugin sin reflashear el firmware. Este proyecto es independiente y no está afiliado a OPUS ni a Teenage Engineering.
+
 La versión actual es **0.14.1**. Una vez instalado y cargado por OPUS, comienza a capturar y transmitir por USB MIDI en cada arranque; el perfil inicial es `fast`. No necesita abrir un menú del instrumento para empezar a recibir imagen.
 
 | Perfil en OPUS | Resolución y color | Visor compatible |
@@ -33,6 +35,17 @@ Medido por el usuario en su OP-1 (panel 400×200) el **10 de noviembre de 2026**
 | `quality` x1 / x4 | 3,6 s / 0,98 s | — |
 
 Sin errores CRC ni fragmentos perdidos en unos 110.000 mensajes; el usuario no percibió cambios en el audio. Son tiempos de llegada al ordenador de cada lote, no latencia tecla→imagen.
+
+**0.17.0 con OPUS 2 beta 4.1 (build 7), 11 de noviembre de 2026.** El plugin carga y transmite desde el arranque, incluidos el menú de OPUS y la capa superior del monitor de OPUS (`monitor.opmod`). En 6 minutos de grabación: 28.374 mensajes sin errores CRC; `screen mirror` en `off` dejó de enviar y de capturar, y tras dos desconexiones del cable USB la imagen volvió sola. Con la pantalla cambiando continuamente:
+
+| Medida | Valor |
+|---|---|
+| Monitor de OPUS: audio / peor bloque / bloques tardíos | 9,6 % / 21,0 % / 0 |
+| Monitor de OPUS: hilo de pantalla / hilo principal (total, todos los plugins) | 35,4 % / 37,7 % |
+| Telemetría del plugin: captura | ~8 por segundo, 8,8 ms de mediana → ~7 % del hilo de pantalla |
+| Telemetría del plugin: preparar cada imagen | ~7 por segundo, ~20 ms → ~14 % del hilo principal (sin contar las llamadas USB) |
+
+El monitor de OPUS no muestra una fila propia para ScreenMirror: su captura ocurre en el hook del flush final y su envío en el bucle principal, fuera de las mediciones por plugin. Las cifras del plugin salen de su propia telemetría.
 
 Las actualizaciones regionales, compresión sin pérdida y descarte de trabajo antiguo reducen lo enviado. Los perfiles mayores pueden tardar más cuando cambia toda la pantalla; no se prometen 30 FPS.
 

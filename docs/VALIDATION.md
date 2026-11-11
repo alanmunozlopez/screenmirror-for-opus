@@ -26,7 +26,9 @@ Los headers de `tests/sdk-stubs/` contienen solo los tipos y prototipos necesari
 
 El usuario confirmó imagen con 0.14.1 el **7 de noviembre de 2026**. Las iteraciones anteriores de regiones, captura final del menú y perfil rápido se probaron en su instrumento. La confirmación de 0.14.1 tiene alcance limitado: no se presenta como una campaña medida de los tres modos.
 
-Queda por medir en el dispositivo la latencia tecla→imagen, los tres perfiles durante edición de samples y Tape, pérdidas USB, audio/MIDI, uso sostenido de CPU y convivencia con todos los mods. La persistencia se verifica mediante mocks del contrato, no mediante lectura posterior de ajustes del OP-1. Tampoco se ha identificado la imagen exacta del core instalado.
+**0.17.0, 11 de noviembre de 2026:** probado primero con OPUS build 5 y después con **OPUS 2 beta 4.1 (build 7)**, en ambos casos con el starter pack y el monitor de OPUS cargados. Comprobado en la grabación: arranque con imagen, 0 errores CRC, `screen mirror` en `off` sin mensajes ni capturas y vuelta a `on` con sesión nueva, y recuperación tras desconectar el cable USB (el contador `usb_unconfigured` avanza y la captura se detiene). Monitor de OPUS: audio 9,6 %, 0 bloques tardíos. Telemetría: captura ~7 % del hilo de pantalla y preparación ~14 % del hilo principal con la pantalla cambiando continuamente. Los detalles están en el README.
+
+Queda por medir en el dispositivo la latencia tecla→imagen, el uso sostenido de CPU durante sesiones largas y la convivencia con todos los mods. La persistencia se verifica mediante mocks del contrato, no mediante lectura posterior de ajustes del OP-1. Tampoco se ha identificado la imagen exacta del core instalado.
 
 Una secuencia de prueba manual útil es: comprobar imagen tras arranque sin abrir menús; cambiar fast→balanced→quality y volver; editar samples y accionar Tape sin REC; esperar dos segundos y reiniciar para comprobar persistencia; escuchar audio y verificar MIDI; comparar con el paquete anterior. Esta exportación no realiza esos pasos automáticamente.
 
