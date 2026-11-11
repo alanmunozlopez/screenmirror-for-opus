@@ -2,9 +2,9 @@ opmod 1
 id alan.screenmirror
 name screenmirror
 author alan
-version 0.16.0
+version 0.17.0
 core 2.4
-adds Live fast/balanced/quality/sharp display mirror; sharp x4 by default; experimental send rate
-setting mode fast,balanced,quality,sharp sharp "mirror mode"
+adds Live sharp display mirror (native panel resolution) over USB MIDI; screen on/off; send rate x1-x4, x4 by default
+setting screen on,off on "screen mirror"
 setting send x1,x2,x3,x4 x4 "send rate"
 place call 0x019AB8C8 screenmirror_flush_entry expect 07e3caaf as final_frame_flush

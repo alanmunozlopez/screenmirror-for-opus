@@ -10,18 +10,20 @@ La versión actual es **0.14.1**. Una vez instalado y cargado por OPUS, comienza
 | `balanced` | 320×160, RGB332, 256 colores; más detalle | macOS y Chrome |
 | `quality` | Resolución física 320×160, 376×188 o 400×200; RGB565 | App macOS 0.14.0 |
 
-### Versión experimental 0.16.0: perfil `sharp` y `send rate`
+### Versión experimental 0.17.0: solo `sharp`
 
-La rama `perf/send-rate-capture` contiene **0.16.0**, todavía sin paquete en `releases/`. Se compila con `sh scripts/build.sh` y añade:
+La rama `perf/send-rate-capture` contiene **0.17.0**, todavía sin paquete en `releases/`. Se compila con `sh scripts/build.sh`. Tiene un único modo de imagen, `sharp`: RGB332 a la resolución física del panel (320×160, 376×188 o 400×200), sin escalar ni descartar píxeles. Ya no hay ajuste `mode`; un `mode` guardado por 0.16.0 se ignora.
 
 | Ajuste en OPUS | Valores | Efecto |
 |---|---|---|
-| `mode` | `fast`, `balanced`, `quality`, **`sharp`** (predeterminado) | `sharp`: resolución física sin escalar (320×160, 376×188 o 400×200) en RGB332; texto tan nítido como `quality` con el transporte v4 de `balanced`. |
+| `screen mirror` | **`on`** (predeterminado), `off` | `off` detiene captura y envío: el plugin no manda ningún mensaje MIDI, ni siquiera telemetría. Útil si conectas el OP-1 a un DAW como controlador. Al volver a `on` empieza una sesión nueva con una captura fresca. |
 | `send rate` | `x1`–`x4` (predeterminado **x4**) | Mensajes por pasada de main. `x1` conserva el ritmo de 0.14 (uno cada ≥5 ms). |
 
-`balanced` y `fast` siguen escalando la pantalla de 400 a 320 o 240 columnas sin filtrar, lo que deforma trazos de 1 píxel; `sharp` no descarta ningún píxel. Necesita los visores actualizados (app de escritorio compilada desde `main` y visor web actual): la app 0.14.0 distribuida rechaza las geometrías 376/400 en v4.
+Sin USB conectado (o con `screen mirror` en `off`) el plugin no captura la pantalla: el hilo de pantalla solo encadena el flush original. La memoria de píxeles queda reservada desde el arranque igualmente.
 
-Medido por el usuario en su OP-1 (panel 400×200) el **10 de noviembre de 2026**, con la grabadora de SysEx del receptor:
+0.16.0 ofrecía además `fast`, `balanced` y `quality`. Se retiraron en 0.17.0 tras las pruebas en hardware: `fast` y `balanced` escalan sin filtrar y deforman trazos de 1 píxel, y `quality` (RGB565) tarda cerca de 1 s por pantalla completa y no funciona en Chrome. Con un solo motor, el paquete pasa de 22.728 a 12.668 bytes, los estáticos de 180.240 a 143.560 bytes y la reserva de píxeles de 640.000 a 560.008 bytes. Necesita los visores actualizados (app de escritorio compilada desde `main` y visor web actual): la app 0.14.0 distribuida rechaza las geometrías 376/400 en v4.
+
+Medido por el usuario en su OP-1 (panel 400×200) el **10 de noviembre de 2026** con 0.15.0/0.16.0, con la grabadora de SysEx del receptor (los perfiles retirados se muestran como referencia):
 
 | Perfil y velocidad | Pantalla completa (mediana) | Cambio regional (mediana) |
 |---|---|---|
@@ -38,7 +40,7 @@ Las actualizaciones regionales, compresión sin pérdida y descarte de trabajo a
 
 - **Este repositorio:** plugin Blackfin, pruebas del emisor y paquetes `.opmod`.
 - [screenmirror-desktop](https://github.com/alanmunozlopez/screenmirror-desktop): app nativa **macOS Apple Silicon**, compatible con los tres perfiles. Windows todavía no está implementado.
-- [screenmirror-web](https://github.com/alanmunozlopez/screenmirror-web): visor Chrome mediante Web MIDI en localhost/HTTPS. Admite `fast` y `balanced`; todavía no admite `quality`.
+- [screenmirror-web](https://github.com/alanmunozlopez/screenmirror-web): visor Chrome mediante Web MIDI en localhost/HTTPS. Admite `fast`, `balanced` y `sharp`; no admite `quality`.
 
 ## Instalar el plugin
 
@@ -49,7 +51,7 @@ Requiere un OP-1 **OG con OPUS 2 ya instalado**, basado en el firmware #246 y co
 3. Expulsa el disco y reinicia siguiendo el procedimiento de plugins de OPUS. El plugin arranca automáticamente cuando OPUS lo carga.
 4. Abre el visor de escritorio o el visor web. El receptor se conecta al OP-1 disponible; Chrome solicita permiso Web MIDI/SysEx en el navegador la primera vez. No hay configuración de streaming en el instrumento.
 
-Para cambiar de perfil: **SYNTH + DRUM + TAPE + MIXER → T2 → selecciona screenmirror con el encoder azul → pulsa azul → MIRROR MODE → gira verde**. El cambio no requiere reiniciar. OPUS guarda el valor después de dos segundos sin cambios; en el siguiente arranque se usa esa elección. `fast` es el valor inicial cuando no hay un ajuste guardado.
+Para cambiar de perfil: **SYNTH + DRUM + TAPE + MIXER → T2 → selecciona screenmirror con el encoder azul → pulsa azul → MIRROR MODE → gira verde**. El cambio no requiere reiniciar. OPUS guarda el valor después de dos segundos sin cambios; en el siguiente arranque se usa esa elección. `fast` es el valor inicial cuando no hay un ajuste guardado. En 0.17.0 ese menú contiene SCREEN MIRROR y SEND RATE.
 
 Si necesitas volver atrás, restaura tu `.opmod` anterior y su visor. También se conserva [0.11.0, perfil rápido](releases/0.11.0/screenmirror.opmod), la referencia histórica confirmada antes de añadir los tres modos. Los demás paquetes históricos se describen en [releases/README.md](releases/README.md). Cambiar el plugin no requiere reflashear. TE-BOOT queda como recuperación del firmware mediante el procedimiento de Teenage Engineering si fuese necesario, no como parte de esta instalación.
 
