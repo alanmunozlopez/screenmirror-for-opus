@@ -62,7 +62,7 @@ Regional updates, lossless compression and dropping stale work reduce what is se
 
 - **This repository:** the Blackfin plugin, sender tests and `.opmod` packages.
 - [screenmirror-desktop](https://github.com/alanmunozlopez/screenmirror-desktop): native **macOS Apple Silicon** app. It decodes every profile. Windows is not implemented yet.
-- [screenmirror-web](https://github.com/alanmunozlopez/screenmirror-web): Chrome viewer using Web MIDI on localhost/HTTPS. It supports `fast`, `balanced` and `sharp`, but not `quality`.
+- [screenmirror-web](https://github.com/alanmunozlopez/screenmirror-web): Chrome viewer using Web MIDI, live at [opus-screenmirror.severusnare.com](https://opus-screenmirror.severusnare.com). It supports `fast`, `balanced` and `sharp`, but not `quality`.
 
 ## Install the plugin
 
