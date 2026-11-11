@@ -6,7 +6,7 @@ ScreenMirror exists thanks to [**OPUS**](https://github.com/LizardMan245/opus) b
 
 ## Versions
 
-The latest packaged release is **0.14.1** ([releases/0.14.1](releases/0.14.1/screenmirror.opmod)), with the `fast`, `balanced` and `quality` profiles. `main` contains **0.17.0** (experimental, not yet packaged in `releases/`). Build it with `sh scripts/build.sh`.
+The latest release is **0.17.0**. **[Download screenmirror.opmod](https://github.com/alanmunozlopez/screenmirror-for-opus/releases/latest/download/screenmirror.opmod)** from the [releases page](https://github.com/alanmunozlopez/screenmirror-for-opus/releases/latest); the same file is kept in [releases/0.17.0](releases/0.17.0/screenmirror.opmod). The previous release, **0.14.1**, had the `fast`, `balanced` and `quality` profiles.
 
 ### 0.17.0: sharp only
 
@@ -68,8 +68,8 @@ Regional updates, lossless compression and dropping stale work reduce what is se
 
 It requires an OP-1 **OG with OPUS 2 installed**, based on firmware #246, with the manifest's imports available. It is not a plugin for the OP-1 field or for Hundekraft. The capture uses a #246-specific hook, checked byte by byte; it does not assume a universal framebuffer API.
 
-1. Download the `.opmod` (`releases/0.14.1/screenmirror.opmod`, or a 0.17.0 build). Keep a copy of your previous plugin off the OP-1 disk.
-2. Put the instrument in disk mode. **Once macOS shows the disk**, replace only `mods/screenmirror.opmod`. Keep a single copy of the plugin.
+1. Download [screenmirror.opmod](https://github.com/alanmunozlopez/screenmirror-for-opus/releases/latest/download/screenmirror.opmod). Keep a copy of your previous plugin off the OP-1 disk.
+2. Put the instrument in disk mode. **Once macOS shows the disk**, copy it to `mods/screenmirror.opmod`, replacing any older ScreenMirror. Keep a single copy of the plugin: if an older file has another name, delete it.
 3. Eject the disk and restart the OP-1 as OPUS describes for plugins. The plugin starts by itself when OPUS loads it.
 4. Open the desktop or web viewer. It connects to the available OP-1; Chrome asks for Web MIDI/SysEx permission the first time. Nothing needs to be configured on the instrument for streaming.
 
@@ -117,7 +117,7 @@ OP1_BFIN_TOOLCHAIN=/path/to/toolchain/install \
 sh scripts/build.sh
 ```
 
-The result is written to `build/modes/screenmirror.opmod`. It **never overwrites** the packages kept in `releases/`. `scripts/test-blackfin.sh` rebuilds the plugin and checks it byte for byte against `releases/0.14.1`, together with the assembled bridge. With the 0.17.0 sources that comparison fails by design until 0.17.0 is packaged:
+The result is written to `build/modes/screenmirror.opmod`. It **never overwrites** the packages kept in `releases/`. `scripts/test-blackfin.sh` rebuilds the plugin and checks it byte for byte against `releases/0.17.0`, together with the assembled bridge:
 
 ```sh
 OP1_BFIN_TOOLCHAIN=/path/to/toolchain/install sh scripts/test-blackfin.sh

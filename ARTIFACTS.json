@@ -1,12 +1,12 @@
 {
-  "plugin_version": "0.17.0-experimental",
+  "plugin_version": "0.17.0",
   "source_workspace_commit": "e2e07295011a2d3d7a0d84b4500f41e082d6f69e",
   "sdk_commit": "43b18c97ca0cde430b7d176ca4388fd5d1efeb7d",
   "toolchain": {
     "gcc": "13.3.0",
     "binutils": "2.38"
   },
-  "hardware_validation_scope": "User confirmed received image with 0.14.1 on 2026-11-07; all-mode performance/audio/persistence not measured.",
+  "hardware_validation_scope": "0.17.0 tested on the instrument with OPUS 2 build 5 and build 7 (beta 4.1) on 2026-11-11: image from start-up, 0 CRC errors, screen on/off and USB unplug recovery. Key-to-image latency, long sessions and coexistence with every mod not measured.",
   "files": {
     "src/final240/plugin/flush_entry.S": "f1a635ee9f9c16ff13e8b9c5ad8419278b420e518d9c9c397de73a39696e95f4",
     "src/final240/plugin/manifest.txt": "9bcd790f625e5ea12020b22f367655bc954ba52dc847923b9cc53cc9ae6dee5f",
@@ -26,6 +26,7 @@
     "releases/0.11.0/screenmirror.opmod": "9fb34e3a9e20f3d853a2f9dc537fbc60dafb9efed227eeea886aeffbd7871712",
     "releases/0.12.0/screenmirror.opmod": "f69cb884ea497f5e227d57f3a826c9905a005985113105fe45553e3c780fd479",
     "releases/0.13.0/screenmirror.opmod": "ac84a3421efda40e5570c18f96b85b637648928b0981d7561b4e50e8f982e3ec",
-    "releases/0.14.1/screenmirror.opmod": "5148263eb1a80e9edce3c9d821eb18b9c3b7331617f0e4ce75a547ae5446e36a"
+    "releases/0.14.1/screenmirror.opmod": "5148263eb1a80e9edce3c9d821eb18b9c3b7331617f0e4ce75a547ae5446e36a",
+    "releases/0.17.0/screenmirror.opmod": "28c2cca5ab590e8d74bc2c35e510aa333869b3dc3abf499e6f41852419be9c03"
   }
 }

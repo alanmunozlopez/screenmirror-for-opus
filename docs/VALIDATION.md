@@ -10,7 +10,7 @@ sh scripts/test-host.sh
 OP1_BFIN_TOOLCHAIN=/path/to/toolchain/install sh scripts/test-blackfin.sh
 ```
 
-- **`verify-artifacts.py`:** SHA-256 of the production sources and the four historical packages.
+- **`verify-artifacts.py`:** SHA-256 of the production sources and the five kept packages.
 - **`test_modes_independent.py`:** **24 processes under ASan/UBSan** run the real 0.17.0 controller and `sharp` engine. They check:
   - no capture before USB is seen or while it is disconnected (using the capture counter in the telemetry);
   - `screen mirror` set to `off` from start-up and live: no MIDI at all, and a fresh capture in a new session after `on`;
@@ -26,9 +26,9 @@ OP1_BFIN_TOOLCHAIN=/path/to/toolchain/install sh scripts/test-blackfin.sh
   - The `.syx` files and references are written only to `build/fixtures/`.
   - [screenmirror-desktop](https://github.com/alanmunozlopez/screenmirror-desktop) checks the exact reconstruction with its copies in `tests/fixtures/sharp/`, and keeps the 0.16.0 four-mode corpus in `tests/fixtures/modes/`.
 - **`test_final_hook_abi.py`:** a static test of the real assembly. It checks the 43 restored registers, the original arguments, a linear DAG context for C, 184 bytes of stack and a single continuation to the flush. Its negative tests catch a missing restore, a missing argument area or a missing L1 reset.
-- **`test-blackfin.sh`:** applies only to the 0.14.1 sources. With those sources it rebuilds 0.14.1 and requires byte equality with `releases/0.14.1/screenmirror.opmod` (SHA-256 `5148263eb1a80e9edce3c9d821eb18b9c3b7331617f0e4ce75a547ae5446e36a`, **20,808 bytes**); the SDK reports an image of 11,592 bytes, a zero fill of 278,412 and 10 imports. With the 0.16.0/0.17.0 sources the comparison fails by design.
-  - The 0.16.0 build tested on the instrument is 22,728 bytes, SHA-256 `554a200dbc32cdbb0eef66a78bcff3f20ddf936ed3133b76af485bb72ceb49ab`.
-  - The current 0.17.0 build (ID `severusnare.screenmirror`) is 12,684 bytes, SHA-256 `28c2cca5ab590e8d74bc2c35e510aa333869b3dc3abf499e6f41852419be9c03`. The build tested on the instrument differed only in its ID (`alan.screenmirror`).
+- **`test-blackfin.sh`:** rebuilds the plugin from `src/modes/plugin` and requires byte equality with `releases/0.17.0/screenmirror.opmod`: ID `severusnare.screenmirror`, **12,684 bytes**, SHA-256 `28c2cca5ab590e8d74bc2c35e510aa333869b3dc3abf499e6f41852419be9c03`. The SDK reports an image of 6,996 bytes, a zero fill of 136,564 and 10 imports. The build tested on the instrument differed only in its ID (`alan.screenmirror`).
+  - Earlier releases were checked the same way at the time: 0.14.1 is 20,808 bytes, SHA-256 `5148263eb1a80e9edce3c9d821eb18b9c3b7331617f0e4ce75a547ae5446e36a`.
+  - The 0.16.0 build tested on the instrument (never released) is 22,728 bytes, SHA-256 `554a200dbc32cdbb0eef66a78bcff3f20ddf936ed3133b76af485bb72ceb49ab`.
 
 The headers in `tests/sdk-stubs/` contain only the types and prototypes the mocks need. Packaging always uses the real pinned SDK; `SCREENMIRROR_TEST_SDK` also lets you repeat the C cases with its full headers.
 
