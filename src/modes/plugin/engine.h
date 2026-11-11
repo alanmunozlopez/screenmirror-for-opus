@@ -1,38 +1,32 @@
 #ifndef SCREENMIRROR_ENGINES_H
 #define SCREENMIRROR_ENGINES_H
-/* The controller publishes one atomic (epoch << 2 | mode) token.
- * select runs only in main; capture runs only in the final display hook.
- * Engine selection never resets display-owned publication or mapping state. */
-enum sm_mode { SM_FAST=0, SM_BALANCED=1, SM_QUALITY=2 };
-/* Only the selected engine may interpret these pools. On every selection main
- * abandons its former job/reference and requires a fresh display token before
- * reading pixels. The sole display producer publishes after completing a copy. */
-union sm_snapshot_storage {
-    unsigned short native[3][80000];
-    unsigned char rgb[3][51200];
-};
-union sm_reference_storage {
-    unsigned short native[80000];
-    unsigned char rgb[51200];
+/* 0.17: a single engine, sharp (RGB332 at the physical panel resolution).
+ * The controller publishes one atomic (epoch << 2 | SM_SHARP) token once in
+ * opl_init. Token 3 (epoch 0) is the never-selected value: capture stays off
+ * until initialization succeeds. select runs only in main; capture runs only
+ * in the final display hook. */
+#define SM_SHARP 3u
+/* RGB332 uses at most 400x200 bytes per image. Image-sized main-only LZ/RLE
+ * work buffers live here, never in near static memory (see 0.14.0). */
+struct sm_pixel_storage {
+    unsigned char snapshots[3][80000];
+    unsigned char lz_buffer[80004],lz_trial[80004];
+    unsigned char reference[80000];
+    unsigned char compressed[80000];
 };
 /* Large pixels belong in the core's data pool, not the CALL-reachable code
- * image. One allocation in opl_init is shared for this boot by all profiles. */
-struct sm_pixel_storage {
-    union sm_snapshot_storage snapshots;
-    union sm_reference_storage reference;
-};
+ * image. One allocation in opl_init for this boot. */
 extern struct sm_pixel_storage *sm_pixels;
+/* Messages the engine may send per main pass, 1..4 (default 4). 1 keeps the 0.14 cadence exactly. */
+extern volatile unsigned sm_burst;
+/* "screen mirror" setting: 1 = on (default), 0 = off. Off: no capture, no MIDI. */
+extern volatile unsigned sm_screen_on;
 int sm_transport_ready(void);
 void sm_send_events(const unsigned int *events,int count);
 unsigned sm_new_session(void);
 void sm_rgb_select(unsigned token,unsigned session);
-void sm_native_select(unsigned token,unsigned session);
 void sm_rgb_capture(void *start,void *end,int invalidate,unsigned token);
-void sm_native_capture(void *start,void *end,int invalidate,unsigned token);
 void sm_rgb_main(void);
-void sm_native_main(void);
 void sm_rgb_key(int key,int pressed);
-void sm_native_key(int key,int pressed);
 void sm_rgb_knob(int index,short delta);
-void sm_native_knob(int index,short delta);
 #endif

@@ -1,5 +1,5 @@
 {
-  "plugin_version": "0.14.1",
+  "plugin_version": "0.17.0-experimental",
   "source_workspace_commit": "e2e07295011a2d3d7a0d84b4500f41e082d6f69e",
   "sdk_commit": "43b18c97ca0cde430b7d176ca4388fd5d1efeb7d",
   "toolchain": {
@@ -15,12 +15,11 @@
     "src/final320/plugin/manifest.txt": "b575502068e036528dc5d95b7f34cdbb33f57ad5afe1d8b0a957fae7d38a0ba7",
     "src/final320/plugin/screenmirror.c": "820224eadba400653a90c128b98999ddabbf98318a9a6af84b532f16ccc1d08d",
     "src/lz-regions-source/lzss.h": "ea2118bc615ac45c80d4be6c452a5e0734ca8b249b3ce0a53095e7da14bf8e16",
-    "src/modes/plugin/engine.h": "21b35a5dac6ad2ebf1d0928e0bde546ba85e8646ad0496da29b5406a08015832",
+    "src/modes/plugin/engine.h": "89401dd59d94cbbc231effc60a9adc5e775ccb18533ef389e5f4f408ba6a6381",
     "src/modes/plugin/flush_entry.S": "40a0b64f37d4f08cb59b27a958bfdf9938f6fa56a2d6a02633256de76d8191b5",
-    "src/modes/plugin/manifest.txt": "a70132fa11e56da069c77b9d8deda7a481e8b545fae0d858ed9751f23faf97c1",
-    "src/modes/plugin/native_sender.c": "c558c5b5a787bc2cd104def70d3e7300b1993b4c0e046aff17673d5955260b5e",
-    "src/modes/plugin/rgb_sender.c": "d3c62bb1f0b722ed69fbbfc18b3044046f85376be369c5b79133cfb3efe49872",
-    "src/modes/plugin/screenmirror.c": "1f4178e75e6e9493ab3b592b4537543d58426c17b6141c73d1aa219b24b2c71f",
+    "src/modes/plugin/manifest.txt": "a7686b93868e76e12aceb98a1cf5246e2e4f1383eb2898d770615946505177e6",
+    "src/modes/plugin/rgb_sender.c": "1d40a821348750c9a65a197be0f57939298d76d92b781b51607e742531249c97",
+    "src/modes/plugin/screenmirror.c": "f36dcfe3efcb6dc51c215f92b40ba37fb545c3e6d87a537c05fffda08c9529b9",
     "src/native565/plugin/flush_entry.S": "40a0b64f37d4f08cb59b27a958bfdf9938f6fa56a2d6a02633256de76d8191b5",
     "src/native565/plugin/manifest.txt": "b259e869e6abe7eb401d063488288e9a889f47f6888ac8d3310238abca725ae9",
     "src/native565/plugin/screenmirror.c": "910aefafc94de4d8b1967b24a1d1080b56680562e0bf6f2377b81cdfb47ed860",
