@@ -1,47 +1,77 @@
-# Captura, memoria y transporte
+# Capture, memory and transport
 
-La implementación actual está en `src/modes/plugin/`. Sus archivos de producción se conservan byte a byte respecto del workspace anterior. La carpeta compartida `src/lz-regions-source/` mantiene los includes relativos del codec sin modificar código de ejecución.
+The current implementation lives in `src/modes/plugin/`. The shared folder `src/lz-regions-source/` keeps the codec's relative includes without changing any runtime code.
 
-## Capturar el menú y las pantallas normales
+## Capturing the menu and normal screens
 
-`manifest.txt` instala un `place call` en `0x019AB8C8`, esperando `07e3caaf`: el flush de la pantalla final del firmware #246. A diferencia de `opus_on_frame`, esa ruta incluye el menú de OPUS. No es una dirección del menú del core ni una API pública y genérica para copiar framebuffers.
+`manifest.txt` installs a `place call` at `0x019AB8C8`, expecting `07e3caaf`: firmware #246's final screen flush. Unlike `opus_on_frame`, that path includes the OPUS menu. It is neither an address in the core's menu nor a public, generic framebuffer-copy API.
 
-El puente `flush_entry.S` preserva 43 registros, deja los registros circulares L0–L3 a cero antes de llamar C, reserva el área de argumentos y encadena exactamente una vez al flush original. Usa 184 bytes de stack para el puente, además de los que necesite C. La prueba de ABI inspecciona el objeto Blackfin ensamblado y tiene controles negativos; no ejecuta instrucciones en una CPU Blackfin real.
+The `flush_entry.S` bridge:
+- preserves 43 registers;
+- clears the circular registers L0–L3 before calling C;
+- reserves the argument area;
+- chains to the original flush exactly once.
 
-El callback valida rango, alineación, modo de invalidación y una geometría de 320, 376 o 400 columnas. Lee RGB565 con el layout documentado por el SDK, `buf[256*(width-1-x)+y]`, copia un snapshot y no retiene el puntero de firmware. La captura se limita a una cada 100 ms y solo ocurre mientras main ha visto USB configurado y `screen mirror` está en `on`; si no, el callback vuelve sin leer píxeles. No asigna memoria, comprime ni llama a USB desde el callback gráfico.
+The bridge uses 184 bytes of stack, plus whatever C needs. The ABI test inspects the assembled Blackfin object and includes negative controls; it does not run instructions on a real Blackfin CPU.
 
-## Modo único y ajustes
+The callback validates the range, the alignment, the invalidation mode and a geometry of 320, 376 or 400 columns. It reads RGB565 with the SDK's documented layout, `buf[256*(width-1-x)+y]`, copies a snapshot and never keeps the firmware pointer.
 
-Desde 0.17.0 hay un solo motor, `sharp` (`rgb_sender.c`): RGB332 con la geometría física del panel. Su anchura se toma de cada captura y un cambio de geometría abre sesión nueva. El manifiesto ofrece `screen on,off` (etiqueta `screen mirror`, inicialmente `on`) y `send rate x1..x4`, inicialmente x4. `send` cambia `sm_burst` sin reiniciar la sesión. Cualquier otro nombre de ajuste, incluido un `mode` guardado por 0.16.0, se ignora.
+Capture is limited to one every 100 ms. It happens only while main has seen USB configured and `screen mirror` is `on`; otherwise the callback returns without reading pixels. The display callback never allocates memory, compresses or calls USB.
 
-Main publica `capture_allowed`, que solo él escribe. Lo baja cuando `screen` está en `off` o `fw_usb_configured()` falla, y en ese momento descarta el trabajo pendiente y la referencia. En `off` no envía nada, ni telemetría. Al reanudar marca como atendido el último snapshot publicado, de modo que nunca se envía una imagen tomada antes de la pausa, y después vuelve a permitir la captura; si la pausa venía de `off`, abre una sesión nueva. La reserva de píxeles se hace en `opl_init` aunque el ajuste esté en `off`, porque OPUS solo permite reservar al arrancar.
+## Single mode and settings
 
-`opl_init` publica una sola vez el token `(1<<2)|SM_SHARP` después de preparar el motor. El token con época 0 queda reservado para el estado sin inicializar: mientras no haya token válido, el hook de pantalla no captura. Cada snapshot conserva el token con el que fue tomado.
+Since 0.17.0 there is a single engine, `sharp` (`rgb_sender.c`): RGB332 at the panel's native geometry. Its width comes from each capture, and a geometry change opens a new session.
 
-Hasta 0.16.0 el manifiesto ofrecía también `fast`, `balanced` y `quality` (motor RGB565 `native_sender.c`), y cada cambio de modo creaba una época y una sesión nuevas. Las fuentes de perfiles anteriores se conservan en `src/final240`, `src/final320` y `src/native565`.
+The manifest offers two settings:
+- `screen on,off`, labelled `screen mirror`, initially `on`;
+- `send rate x1..x4`, initially x4. `send` changes `sm_burst` without restarting the session.
 
-## Memoria y corrección 0.14.1
+Any other setting name is ignored, including a `mode` saved by 0.16.0. The plugin ID is `severusnare.screenmirror` (`alan.screenmirror` up to 0.16.0).
 
-Desde 0.16.0 el motor RGB332 guarda en ese mismo pool sus buffers de imagen completa: RLE, salida LZ y candidato LZ (hasta 400×200). Solo main los usa. En 0.17.0, sin el motor RGB565, el pool contiene tres snapshots, referencia, RLE y dos buffers LZ: **560.008 bytes**. Los estáticos son **143.560 bytes** (6.996 de imagen + 136.564 de zero fill). LZSS4 sigue limitado a entradas de 65.534 bytes: en 376/400 columnas el keyframe usa LZ sobre el flujo RLE (transform 1) o RLE/raw, sin cambios de formato.
+Only main writes `capture_allowed`, and the display thread reads it:
+- **Pause.** Main clears the flag when `screen` is `off` or `fw_usb_configured()` fails, and at that point drops pending work and the reference. When `off`, it sends nothing, not even telemetry.
+- **Resume.** Main marks the last published snapshot as handled, so an image taken before the pause is never sent, and then allows capture again. If the pause came from `off`, it opens a new session.
 
-Una única reserva `opus_alloc` en `opl_init` (640.000 bytes hasta 0.16.0, 560.008 desde 0.17.0) guarda snapshots y referencia: memoria cero, alineación de 32 bytes y duración del arranque según el contrato de OPUS. Si falla, `opl_init` devuelve -1 antes de registrar callbacks. No hay reservas durante captura ni transmisión.
+The pixel pool is reserved in `opl_init` even when the setting is `off`, because OPUS only allows allocation at start-up.
 
-En 0.14.1 la imagen compilada contiene 11.592 bytes y 278.412 de zero fill: **290.004 bytes** de código/datos estáticos, más el pool dinámico de píxeles. La memoria total sigue cerca de 930 KB; el cambio evita colocar esos 640 KB en el segmento que contiene el código del hook.
+`opl_init` publishes the token `(1<<2)|SM_SHARP` once, after preparing the engine. The epoch-0 token is reserved for the uninitialised state: without a valid token, the display hook does not capture. Each snapshot keeps the token it was taken with.
 
-0.14.0 tenía 929.880 bytes estáticos. En el core local auditado dev66, el pool cercano máximo era 693.856 bytes; el cargador lo colocaba lejos y el `CALL` quedaba fuera de alcance antes de `opl_init`. La corrección se recompila idéntica aquí. El SHA del core local auditado era `5394528efefcea4c2729d34f6f681dd42bb311d93fdb3b9bc2298835f935d566`; nunca se leyó la identidad del core instalado. Este repositorio no incluye ese `.ldr` ni presenta el análisis del core como una prueba autónoma ejecutable sin él.
+Up to 0.16.0 the manifest also offered `fast`, `balanced` and `quality` (the RGB565 engine `native_sender.c`), and every mode change created a new epoch and session. The sources of the earlier profiles are kept in `src/final240`, `src/final320` and `src/native565`.
 
-## Formato y recuperación
+## Memory and the 0.14.1 fix
 
-Cada mensaje es SysEx con identificador no comercial `0x7d`, firma `SM`, versión, carga empaquetada a 7 bits y CRC16-CCITT. Los mensajes llevan sesión, secuencia, geometría, fragmentación y límites de tamaño. Los receptores validan CRC y límites antes de publicar píxeles.
+Since 0.16.0 the RGB332 engine keeps its full-image buffers in the pixel pool: RLE, LZ output and LZ candidate, up to 400×200. Only main uses them.
 
-- **v4 / RGB332:** regiones de 8×4 y referencia completa; elección entre raw, RLE y LZSS acotado según tamaño. Un cambio denso produce keyframe.
-- **v5 / RGB565:** franjas independientes de 8 filas; color exacto de la captura física, actualización de las franjas cambiadas.
-- **v3 / telemetría:** contadores separados de callbacks, capturas, planificación, envíos e interacción; no son ACK de recepción.
+In 0.17.0, without the RGB565 engine, the pool holds three snapshots, the reference, the RLE buffer and two LZ buffers: **560,008 bytes**. Static memory is **143,560 bytes** (6,996 of image plus 136,564 of zero fill).
 
-El codec LZSS tiene ventana de 4096 bytes, 4 candidatos de búsqueda, coincidencias de 3–18 bytes y un presupuesto de 8192 comparaciones por bloque de 1024 posiciones de entrada. La salida tiene capacidad explícita; si no cabe se elige una representación alternativa. La compresión y los envíos incrementales ocurren exclusivamente en main.
+LZSS4 is still limited to inputs of 65,534 bytes. At 376/400 columns, the keyframe uses LZ over the RLE stream (transform 1) or RLE/raw, with no format change.
 
-Se prioriza el snapshot más reciente sin mantener una cola creciente de imágenes antiguas. El intervalo compartido de transmisión es de al menos **5 ms desde el retorno de la llamada USB anterior**, también al cambiar entre motores. Desde 0.15.0, `send rate` permite enviar hasta 4 mensajes seguidos en una misma pasada tras ese intervalo; con x1 se mantiene un mensaje por pasada. Se comprueba la configuración USB antes de enviar. No se altera el transporte de audio ni se registran callbacks de audio.
+A single `opus_alloc` in `opl_init` holds the snapshots and the reference: 640,000 bytes up to 0.16.0, and 560,008 bytes since 0.17.0. Following the OPUS contract, the memory is zeroed, aligned to 32 bytes and lives for the whole boot. If the allocation fails, `opl_init` returns -1 before registering any callback. Nothing is allocated during capture or transmission.
 
-`fw_midi_send` tiene retorno void: una llamada no prueba entrega y la cola puede descartar. No hay ACK/retransmisión por fragmento; keyframes periódicos, aproximadamente cada 8 segundos desde el último completado, permiten corregir una referencia perdida. Los decodificadores rechazan paquetes incoherentes y esperan una base válida. El protocolo robusto reduce errores observables, pero no convierte USB MIDI en un canal de vídeo garantizado.
+In 0.14.1 the compiled image holds 11,592 bytes plus 278,412 of zero fill: **290,004 bytes** of static code and data, plus the dynamic pixel pool. Total memory stays close to 930 KB. The change keeps those 640 KB out of the segment that contains the hook's code.
 
-El cierre del visor todavía no detiene la captura o el streaming si USB sigue configurado. Esa optimización necesitaría una señal de presencia del receptor; no se añade en esta exportación.
+0.14.0 had 929,880 static bytes. In the audited local core dev66, the largest near pool was 693,856 bytes; the loader placed the plugin far away and the `CALL` was out of range before `opl_init`. The fix rebuilds identically here.
+
+The audited local core's SHA-256 was `5394528efefcea4c2729d34f6f681dd42bb311d93fdb3b9bc2298835f935d566`; the installed core's identity was never read. This repository does not include that `.ldr`, and does not present the core analysis as a test that can run without it.
+
+## Format and recovery
+
+Each message is SysEx with the non-commercial ID `0x7d`, the signature `SM`, a version, a 7-bit packed payload and CRC16-CCITT. Messages carry session, sequence, geometry, fragmentation and size limits. Receivers check the CRC and the limits before publishing pixels.
+
+- **v4 / RGB332:** 8×4 regions and a full reference. Raw, RLE or bounded LZSS is chosen by size. A dense change produces a keyframe.
+- **v5 / RGB565:** independent 8-row stripes, with the exact colour of the physical capture; only the changed stripes are updated. It was used by `quality`, up to 0.16.0.
+- **v3 / telemetry:** separate counters for callbacks, captures, planning, sends and interaction. They are not receipt ACKs.
+
+The LZSS codec has:
+- a 4096-byte window;
+- 4 search candidates;
+- matches of 3–18 bytes;
+- a budget of 8192 comparisons per block of 1024 input positions.
+
+The output has an explicit capacity; if a candidate does not fit, another representation is chosen. Compression and incremental sends happen only in main.
+
+The newest snapshot takes priority; there is no growing queue of old images. Sends are spaced at least **5 ms from the return of the previous USB call**. Since 0.15.0, `send rate` allows up to 4 messages in a row in the same pass after that interval; x1 keeps one message per pass. The USB configuration is checked before sending. The audio transport is not touched and no audio callbacks are registered.
+
+`fw_midi_send` returns void: a call does not prove delivery, and the queue may drop messages. There is no per-fragment ACK or retransmission. Periodic keyframes, about every 8 seconds since the last completed one, correct a lost reference. Decoders reject inconsistent packets and wait for a valid base. The protocol reduces visible errors, but it does not turn USB MIDI into a guaranteed video channel.
+
+Closing the viewer does not stop capture or streaming while USB stays configured: that would need a signal from the receiver. To stop it, set `screen mirror` to `off`.

@@ -1,76 +1,85 @@
 # ScreenMirror for OPUS
 
-Plugin para recuperar en el ordenador la pantalla de un Teenage Engineering **OP-1 original**, incluido el menú de OPUS 2. Autor: [alanmunozlopez](https://github.com/alanmunozlopez).
+A plugin that shows the screen of an original Teenage Engineering **OP-1** on your computer, including the OPUS 2 menu. By [severusnare](https://github.com/alanmunozlopez).
 
-ScreenMirror existe gracias a [**OPUS**](https://github.com/LizardMan245/opus), de **LizardMan**: su core, su sistema de plugins `.opmod` y su SDK hacen posible cargar este plugin sin reflashear el firmware. Este proyecto es independiente y no está afiliado a OPUS ni a Teenage Engineering.
+ScreenMirror exists thanks to [**OPUS**](https://github.com/LizardMan245/opus) by **LizardMan**. Its core, its `.opmod` plugin system and its SDK make it possible to load this plugin without reflashing the firmware. This is an independent project, not affiliated with OPUS or Teenage Engineering.
 
-La versión actual es **0.14.1**. Una vez instalado y cargado por OPUS, comienza a capturar y transmitir por USB MIDI en cada arranque; el perfil inicial es `fast`. No necesita abrir un menú del instrumento para empezar a recibir imagen.
+## Versions
 
-| Perfil en OPUS | Resolución y color | Visor compatible |
+The latest packaged release is **0.14.1** ([releases/0.14.1](releases/0.14.1/screenmirror.opmod)), with the `fast`, `balanced` and `quality` profiles. `main` contains **0.17.0** (experimental, not yet packaged in `releases/`). Build it with `sh scripts/build.sh`.
+
+### 0.17.0: sharp only
+
+0.17.0 has a single image mode, `sharp`: RGB332 at the native panel resolution (320×160, 376×188 or 400×200), with no scaling and no dropped pixels. The plugin ID is `severusnare.screenmirror`; earlier versions used `alan.screenmirror`. Settings saved by older versions are not carried over.
+
+| OPUS setting | Values | Effect |
 |---|---|---|
-| `fast` — predeterminado | 240×120, RGB332, 256 colores; prioridad a respuesta | macOS y Chrome |
-| `balanced` | 320×160, RGB332, 256 colores; más detalle | macOS y Chrome |
-| `quality` | Resolución física 320×160, 376×188 o 400×200; RGB565 | App macOS 0.14.0 |
+| `screen mirror` | **`on`** (default), `off` | `off` stops capture and sending: the plugin sends no MIDI at all, not even telemetry. Useful when the OP-1 is connected to a DAW as a controller. Turning it back `on` starts a new session from a fresh capture. |
+| `send rate` | `x1`–`x4` (default **x4**) | Messages per main pass. `x1` keeps the 0.14 pace (one every ≥5 ms). |
 
-### Versión experimental 0.17.0: solo `sharp`
+Without USB, or with `screen mirror` set to `off`, the plugin does not capture the screen: the display thread only chains the original flush. The pixel memory is still reserved at start-up.
 
-La rama `perf/send-rate-capture` contiene **0.17.0**, todavía sin paquete en `releases/`. Se compila con `sh scripts/build.sh`. Tiene un único modo de imagen, `sharp`: RGB332 a la resolución física del panel (320×160, 376×188 o 400×200), sin escalar ni descartar píxeles. Ya no hay ajuste `mode`; un `mode` guardado por 0.16.0 se ignora.
+0.16.0 also offered `fast`, `balanced` and `quality`. They were removed in 0.17.0 after hardware testing:
+- `fast` and `balanced` scale without filtering, which distorts 1-pixel strokes.
+- `quality` (RGB565) takes about 1 s per full screen and does not work in Chrome.
 
-| Ajuste en OPUS | Valores | Efecto |
-|---|---|---|
-| `screen mirror` | **`on`** (predeterminado), `off` | `off` detiene captura y envío: el plugin no manda ningún mensaje MIDI, ni siquiera telemetría. Útil si conectas el OP-1 a un DAW como controlador. Al volver a `on` empieza una sesión nueva con una captura fresca. |
-| `send rate` | `x1`–`x4` (predeterminado **x4**) | Mensajes por pasada de main. `x1` conserva el ritmo de 0.14 (uno cada ≥5 ms). |
+With a single engine, the package went from 22,728 to 12,684 bytes, static memory from 180,240 to 143,560 bytes and the pixel pool from 640,000 to 560,008 bytes.
 
-Sin USB conectado (o con `screen mirror` en `off`) el plugin no captura la pantalla: el hilo de pantalla solo encadena el flush original. La memoria de píxeles queda reservada desde el arranque igualmente.
+`sharp` needs current viewers: the desktop app built from `main` and the current web viewer. The bundled desktop app 0.14.0 rejects the 376/400 geometries in v4.
 
-0.16.0 ofrecía además `fast`, `balanced` y `quality`. Se retiraron en 0.17.0 tras las pruebas en hardware: `fast` y `balanced` escalan sin filtrar y deforman trazos de 1 píxel, y `quality` (RGB565) tarda cerca de 1 s por pantalla completa y no funciona en Chrome. Con un solo motor, el paquete pasa de 22.728 a 12.668 bytes, los estáticos de 180.240 a 143.560 bytes y la reserva de píxeles de 640.000 a 560.008 bytes. Necesita los visores actualizados (app de escritorio compilada desde `main` y visor web actual): la app 0.14.0 distribuida rechaza las geometrías 376/400 en v4.
+### Measured on the instrument
 
-Medido por el usuario en su OP-1 (panel 400×200) el **10 de noviembre de 2026** con 0.15.0/0.16.0, con la grabadora de SysEx del receptor (los perfiles retirados se muestran como referencia):
+Measured on an OP-1 with a 400×200 panel on **10 November 2026**, with 0.15.0/0.16.0 and an input-only SysEx recorder on the computer. The removed profiles are shown for reference.
 
-| Perfil y velocidad | Pantalla completa (mediana) | Cambio regional (mediana) |
+| Profile and rate | Full screen (median) | Regional change (median) |
 |---|---|---|
 | `balanced` x1 | 492 ms | 160 ms |
 | `balanced` x4 | 54–57 ms | 40–48 ms |
 | `sharp` x4 | 80 ms (p90 168 ms) | 64 ms |
-| `quality` x1 / x4 | 3,6 s / 0,98 s | — |
+| `quality` x1 / x4 | 3.6 s / 0.98 s | — |
 
-Sin errores CRC ni fragmentos perdidos en unos 110.000 mensajes; el usuario no percibió cambios en el audio. Son tiempos de llegada al ordenador de cada lote, no latencia tecla→imagen.
+There were no CRC errors or lost fragments in about 110,000 messages, and no audible change in audio. These are arrival times of each batch at the computer, not key-to-image latency.
 
-**0.17.0 con OPUS 2 beta 4.1 (build 7), 11 de noviembre de 2026.** El plugin carga y transmite desde el arranque, incluidos el menú de OPUS y la capa superior del monitor de OPUS (`monitor.opmod`). En 6 minutos de grabación: 28.374 mensajes sin errores CRC; `screen mirror` en `off` dejó de enviar y de capturar, y tras dos desconexiones del cable USB la imagen volvió sola. Con la pantalla cambiando continuamente:
+**0.17.0 with OPUS 2 beta 4.1 (build 7), 11 November 2026.** The plugin loads and sends from start-up, including the OPUS menu and the top layer of the OPUS monitor (`monitor.opmod`). A 6-minute recording gave the following results:
+- 28,374 messages with no CRC errors.
+- With `screen mirror` set to `off`, sending and capture stopped.
+- After two USB cable disconnects, the image came back by itself.
 
-| Medida | Valor |
+Figures with the screen changing continuously:
+
+| Measure | Value |
 |---|---|
-| Monitor de OPUS: audio / peor bloque / bloques tardíos | 9,6 % / 21,0 % / 0 |
-| Monitor de OPUS: hilo de pantalla / hilo principal (total, todos los plugins) | 35,4 % / 37,7 % |
-| Telemetría del plugin: captura | ~8 por segundo, 8,8 ms de mediana → ~7 % del hilo de pantalla |
-| Telemetría del plugin: preparar cada imagen | ~7 por segundo, ~20 ms → ~14 % del hilo principal (sin contar las llamadas USB) |
+| OPUS monitor: audio / worst block / late blocks | 9.6 % / 21.0 % / 0 |
+| OPUS monitor: display thread / main thread (total, all plugins) | 35.4 % / 37.7 % |
+| Plugin telemetry: capture | ~8 per second, 8.8 ms median → ~7 % of the display thread |
+| Plugin telemetry: preparing each image | ~7 per second, ~20 ms → ~14 % of the main thread (USB calls not included) |
 
-El monitor de OPUS no muestra una fila propia para ScreenMirror: su captura ocurre en el hook del flush final y su envío en el bucle principal, fuera de las mediciones por plugin. Las cifras del plugin salen de su propia telemetría.
+The OPUS monitor has no row of its own for ScreenMirror. Capture happens in the final-flush hook and sending in the main loop, outside the per-plugin measurements, so the plugin's figures come from its own telemetry.
 
-Las actualizaciones regionales, compresión sin pérdida y descarte de trabajo antiguo reducen lo enviado. Los perfiles mayores pueden tardar más cuando cambia toda la pantalla; no se prometen 30 FPS.
+Regional updates, lossless compression and dropping stale work reduce what is sent. A full-screen change takes longer; 30 FPS is not promised.
 
-## Los tres proyectos
+## The three projects
 
-- **Este repositorio:** plugin Blackfin, pruebas del emisor y paquetes `.opmod`.
-- [screenmirror-desktop](https://github.com/alanmunozlopez/screenmirror-desktop): app nativa **macOS Apple Silicon**, compatible con los tres perfiles. Windows todavía no está implementado.
-- [screenmirror-web](https://github.com/alanmunozlopez/screenmirror-web): visor Chrome mediante Web MIDI en localhost/HTTPS. Admite `fast`, `balanced` y `sharp`; no admite `quality`.
+- **This repository:** the Blackfin plugin, sender tests and `.opmod` packages.
+- [screenmirror-desktop](https://github.com/alanmunozlopez/screenmirror-desktop): native **macOS Apple Silicon** app. It decodes every profile. Windows is not implemented yet.
+- [screenmirror-web](https://github.com/alanmunozlopez/screenmirror-web): Chrome viewer using Web MIDI on localhost/HTTPS. It supports `fast`, `balanced` and `sharp`, but not `quality`.
 
-## Instalar el plugin
+## Install the plugin
 
-Requiere un OP-1 **OG con OPUS 2 ya instalado**, basado en el firmware #246 y con los imports del manifiesto disponibles. No es un plugin para OP-1 Field ni para Hundekraft. El capturador usa un hook específico de #246, comprobado por bytes; no presupone una API universal de framebuffer.
+It requires an OP-1 **OG with OPUS 2 installed**, based on firmware #246, with the manifest's imports available. It is not a plugin for the OP-1 field or for Hundekraft. The capture uses a #246-specific hook, checked byte by byte; it does not assume a universal framebuffer API.
 
-1. Descarga [releases/0.14.1/screenmirror.opmod](releases/0.14.1/screenmirror.opmod). Conserva fuera del disco del OP-1 una copia de tu plugin anterior y de sus ajustes.
-2. Pon el instrumento en modo disco. **Cuando macOS reconozca el disco**, sustituye únicamente `mods/screenmirror.opmod`. Mantén una sola copia con el ID `alan.screenmirror`.
-3. Expulsa el disco y reinicia siguiendo el procedimiento de plugins de OPUS. El plugin arranca automáticamente cuando OPUS lo carga.
-4. Abre el visor de escritorio o el visor web. El receptor se conecta al OP-1 disponible; Chrome solicita permiso Web MIDI/SysEx en el navegador la primera vez. No hay configuración de streaming en el instrumento.
+1. Download the `.opmod` (`releases/0.14.1/screenmirror.opmod`, or a 0.17.0 build). Keep a copy of your previous plugin off the OP-1 disk.
+2. Put the instrument in disk mode. **Once macOS shows the disk**, replace only `mods/screenmirror.opmod`. Keep a single copy of the plugin.
+3. Eject the disk and restart the OP-1 as OPUS describes for plugins. The plugin starts by itself when OPUS loads it.
+4. Open the desktop or web viewer. It connects to the available OP-1; Chrome asks for Web MIDI/SysEx permission the first time. Nothing needs to be configured on the instrument for streaming.
 
-Para cambiar de perfil: **SYNTH + DRUM + TAPE + MIXER → T2 → selecciona screenmirror con el encoder azul → pulsa azul → MIRROR MODE → gira verde**. El cambio no requiere reiniciar. OPUS guarda el valor después de dos segundos sin cambios; en el siguiente arranque se usa esa elección. `fast` es el valor inicial cuando no hay un ajuste guardado. En 0.17.0 ese menú contiene SCREEN MIRROR y SEND RATE.
+To reach the settings: **SYNTH + DRUM + TAPE + MIXER → T2 → select screenmirror with the blue encoder → press blue**. In 0.17.0 the menu has SCREEN MIRROR and SEND RATE (in 0.14.1, MIRROR MODE). Changes apply without a restart. OPUS saves a value after two seconds without changes and uses it at the next start-up.
 
-Si necesitas volver atrás, restaura tu `.opmod` anterior y su visor. También se conserva [0.11.0, perfil rápido](releases/0.11.0/screenmirror.opmod), la referencia histórica confirmada antes de añadir los tres modos. Los demás paquetes históricos se describen en [releases/README.md](releases/README.md). Cambiar el plugin no requiere reflashear. TE-BOOT queda como recuperación del firmware mediante el procedimiento de Teenage Engineering si fuese necesario, no como parte de esta instalación.
+To go back, restore your previous `.opmod` and its viewer. [0.11.0, the fast profile](releases/0.11.0/screenmirror.opmod), is also kept as the historical reference confirmed before the three modes were added. The other historical packages are described in [releases/README.md](releases/README.md). Changing the plugin never requires reflashing. If firmware recovery were ever needed, use TE-BOOT with Teenage Engineering's procedure; it is not part of this installation.
 
-## Probar sin OP-1
+## Test without an OP-1
 
-Requiere Python 3 y un compilador C con AddressSanitizer/UBSan (`cc`, Clang o GCC).
+You need Python 3 and a C compiler with AddressSanitizer/UBSan (`cc`, Clang or GCC).
 
 ```sh
 git clone https://github.com/alanmunozlopez/screenmirror-for-opus.git
@@ -78,38 +87,43 @@ cd screenmirror-for-opus
 sh scripts/test-host.sh
 ```
 
-Ejecuta los **26 casos del controlador real**, pruebas del codec contra un modelo Python independiente y un corpus generado con los motores C reales para tres geometrías. Los headers mínimos de `tests/sdk-stubs/` solo proporcionan declaraciones; ninguna llamada abre un dispositivo. Para repetir las pruebas C con los headers completos del SDK fijado:
+This runs:
+- **24 processes of the real controller and engine** under ASan/UBSan;
+- codec tests against an independent Python model;
+- a corpus generated with the real C engine for three panel geometries.
+
+The minimal headers in `tests/sdk-stubs/` only provide declarations, and nothing opens a device. To repeat the C tests with the full headers of the pinned SDK:
 
 ```sh
 SCREENMIRROR_TEST_SDK="$PWD/.work/opus/plugin-kit/sdk" sh scripts/test-host.sh
 ```
 
-El corpus del emisor se genera en `build/fixtures/`; la reconstrucción exacta de esos fotogramas se comprueba también en el repositorio de escritorio. Consulta [docs/VALIDATION.md](docs/VALIDATION.md).
+The sender corpus is written to `build/fixtures/`. The desktop repository also checks that it reconstructs those frames exactly. See [docs/VALIDATION.md](docs/VALIDATION.md).
 
-## Compilar el `.opmod`
+## Build the `.opmod`
 
-El SDK público se obtiene desde [LizardMan245/opus](https://github.com/LizardMan245/opus/tree/43b18c97ca0cde430b7d176ca4388fd5d1efeb7d/plugin-kit), fijado al commit `43b18c97ca0cde430b7d176ca4388fd5d1efeb7d`. Python estándar es suficiente para empaquetar. Necesitas además una toolchain **bfin-elf GCC 13.3.0 / binutils 2.38**; el SDK y el compilador no están incluidos en este repositorio.
+The public SDK comes from [LizardMan245/opus](https://github.com/LizardMan245/opus/tree/43b18c97ca0cde430b7d176ca4388fd5d1efeb7d/plugin-kit), pinned to commit `43b18c97ca0cde430b7d176ca4388fd5d1efeb7d`. Standard Python is enough for packaging. You also need a **bfin-elf GCC 13.3.0 / binutils 2.38** toolchain. Neither the SDK nor the compiler is included in this repository.
 
 ```sh
 sh scripts/setup-sdk.sh
-OP1_BFIN_TOOLCHAIN=/ruta/a/toolchain/install sh scripts/build.sh
+OP1_BFIN_TOOLCHAIN=/path/to/toolchain/install sh scripts/build.sh
 ```
 
-Si ya tienes el SDK en otro checkout del commit indicado:
+If you already have the SDK in another checkout of that commit:
 
 ```sh
-OPUS_PLUGIN_KIT=/ruta/a/opus/plugin-kit \
-OP1_BFIN_TOOLCHAIN=/ruta/a/toolchain/install \
+OPUS_PLUGIN_KIT=/path/to/opus/plugin-kit \
+OP1_BFIN_TOOLCHAIN=/path/to/toolchain/install \
 sh scripts/build.sh
 ```
 
-El resultado se escribe en `build/modes/screenmirror.opmod`; **nunca sobrescribe** el paquete conservado en `releases/`. Para compilar y verificar su igualdad byte a byte con 0.14.1 y el puente ensamblado:
+The result is written to `build/modes/screenmirror.opmod`. It **never overwrites** the packages kept in `releases/`. `scripts/test-blackfin.sh` rebuilds the plugin and checks it byte for byte against `releases/0.14.1`, together with the assembled bridge. With the 0.17.0 sources that comparison fails by design until 0.17.0 is packaged:
 
 ```sh
-OP1_BFIN_TOOLCHAIN=/ruta/a/toolchain/install sh scripts/test-blackfin.sh
+OP1_BFIN_TOOLCHAIN=/path/to/toolchain/install sh scripts/test-blackfin.sh
 ```
 
-En macOS Apple Silicon se conserva el procedimiento de compilación nativa del compilador, con Xcode Command Line Tools, `make`, `curl` y Homebrew:
+On macOS Apple Silicon you can build the compiler natively with the Xcode Command Line Tools, `make`, `curl` and Homebrew:
 
 ```sh
 brew install gmp mpfr libmpc
@@ -118,16 +132,29 @@ sh scripts/setup-sdk.sh
 sh scripts/test-blackfin.sh
 ```
 
-El script descarga fuentes GNU y verifica sus firmas antes de construir en `.work/`; puede tardar. La recompilación del plugin se ha comprobado en macOS con la toolchain ya construida. En Linux, `build.sh` usa la misma interfaz `OP1_BFIN_TOOLCHAIN` y Python; la construcción de una toolchain Linux nueva no se ha repetido como parte de esta separación. Véanse también las [instrucciones del SDK fijado](https://github.com/LizardMan245/opus/blob/43b18c97ca0cde430b7d176ca4388fd5d1efeb7d/plugin-kit/docs/getting-started.md).
+The script downloads the GNU sources and verifies their signatures before building in `.work/`. It can take a while.
+- The plugin rebuild has been checked on macOS with the toolchain already built.
+- On Linux, `build.sh` uses the same `OP1_BFIN_TOOLCHAIN` interface and Python, but building a new Linux toolchain has not been repeated since the repositories were split.
 
-Ningún script instala plugins, abre MIDI físico ni flashea firmware.
+See also the [pinned SDK's instructions](https://github.com/LizardMan245/opus/blob/43b18c97ca0cde430b7d176ca4388fd5d1efeb7d/plugin-kit/docs/getting-started.md).
 
-## Estado y límites
+No script installs plugins, opens physical MIDI or flashes firmware.
 
-El usuario confirmó recepción de imagen en su OP-1 con **0.14.1 el 7 de noviembre de 2026**. Esto no equivale a medir por separado los tres modos, persistencia, carga sostenida o audio/MIDI en esa versión. Las pruebas sintéticas y el empaquetado sí se ejecutan localmente. [Arquitectura y transporte](docs/ARCHITECTURE.md) · [Validación](docs/VALIDATION.md) · [Historial](docs/HISTORY.md).
+## Status and limits
 
-El plugin reserva aproximadamente **0,93 MB de RAM** mientras está cargado. Captura y transmite si el USB está configurado, incluso con el visor cerrado; todavía no incorpora suspensión por ausencia de receptor. El código no registra callbacks de audio. El límite de envío es una llamada cada 5 ms, no una garantía de recepción: la API de transmisión no ofrece ACK ni presión de cola.
+- **Tested on the instrument:**
+  - Image reception with **0.14.1 on 7 November 2026**.
+  - 0.15.0–0.17.0 on 10 and 11 November 2026, including OPUS build 7 (see above).
+- **Run locally:** the synthetic tests and the packaging.
+- **Not measured yet:**
+  - key-to-image latency;
+  - sustained CPU use over long sessions;
+  - coexistence with every mod.
 
-## Licencia
+[Architecture and transport](docs/ARCHITECTURE.md) · [Validation](docs/VALIDATION.md) · [History](docs/HISTORY.md).
 
-GPL-3.0; véanse [LICENSE](LICENSE) y [NOTICE](NOTICE). Las atribuciones a OPUS y al SDK se conservan como procedencia de dependencias.
+0.17.0 reserves about **0.70 MB of RAM** while loaded (0.14.1: about 0.93 MB). It captures and sends while USB is configured and `screen mirror` is `on`, even with no viewer open. The code registers no audio callbacks. The sending limit is one call every 5 ms, not a delivery guarantee: the transmit API offers no ACK and no queue back-pressure.
+
+## License
+
+GPL-3.0; see [LICENSE](LICENSE) and [NOTICE](NOTICE). The attributions to OPUS and its SDK are kept as dependency provenance.
