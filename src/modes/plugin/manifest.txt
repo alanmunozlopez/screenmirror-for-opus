@@ -1,7 +1,7 @@
 opmod 1
-id alan.screenmirror
+id severusnare.screenmirror
 name screenmirror
-author alan
+author severusnare
 version 0.17.0
 core 2.4
 adds Live sharp display mirror (native panel resolution) over USB MIDI; screen on/off; send rate x1-x4, x4 by default

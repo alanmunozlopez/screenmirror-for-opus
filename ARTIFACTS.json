@@ -17,7 +17,7 @@
     "src/lz-regions-source/lzss.h": "ea2118bc615ac45c80d4be6c452a5e0734ca8b249b3ce0a53095e7da14bf8e16",
     "src/modes/plugin/engine.h": "89401dd59d94cbbc231effc60a9adc5e775ccb18533ef389e5f4f408ba6a6381",
     "src/modes/plugin/flush_entry.S": "40a0b64f37d4f08cb59b27a958bfdf9938f6fa56a2d6a02633256de76d8191b5",
-    "src/modes/plugin/manifest.txt": "a7686b93868e76e12aceb98a1cf5246e2e4f1383eb2898d770615946505177e6",
+    "src/modes/plugin/manifest.txt": "5030c2c17c829e91174b9119c965f9e1183152cf08fe0d2cbb7df2953e372378",
     "src/modes/plugin/rgb_sender.c": "1d40a821348750c9a65a197be0f57939298d76d92b781b51607e742531249c97",
     "src/modes/plugin/screenmirror.c": "f36dcfe3efcb6dc51c215f92b40ba37fb545c3e6d87a537c05fffda08c9529b9",
     "src/native565/plugin/flush_entry.S": "40a0b64f37d4f08cb59b27a958bfdf9938f6fa56a2d6a02633256de76d8191b5",
